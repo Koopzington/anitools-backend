@@ -1124,8 +1124,10 @@ final class APIService
         $results = $sel->executeQuery()->fetchAllAssociativeIndexed();
         $timings[] = 'db-page-main;dur=' . ((microtime(true) - $tStart) * 1000);
         $ids = array_keys($results);
+        $rowNum = $start;
         foreach ($ids as $id) {
             $results[$id]['id'] = $id;
+            $results[$id]['rowNum'] = ++$rowNum;
         }
 
         // Spit out only the columns the user specified
@@ -1241,8 +1243,10 @@ final class APIService
         $results = $sel->executeQuery()->fetchAllAssociativeIndexed();
         $timings[] = 'db-page-main;dur=' . ((microtime(true) - $tStart) * 1000);
         $ids = array_keys($results);
+        $rowNum = $start;
         foreach ($ids as $id) {
             $results[$id]['id'] = $id;
+            $results[$id]['rowNum'] = ++$rowNum;
         }
 
         // Spit out only the columns the user specified
@@ -1429,8 +1433,10 @@ final class APIService
         $results = $sel->executeQuery()->fetchAllAssociativeIndexed();
         $timings[] = 'db-page-main;dur=' . ((microtime(true) - $tStart) * 1000);
         $mediaIds = array_keys($results);
+        $rowNum = $start;
         foreach ($mediaIds as $id) {
             $results[$id]['id'] = $id;
+            $results[$id]['rowNum'] = ++$rowNum;
         }
 
         if (\count($subDataNeeded) > 0 && \count($mediaIds) > 0) {
