@@ -1,0 +1,45 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "koopzington/anitools-backend",
+    "description": "Backend for AniTools",
+    "homepage": "https://github.com/Koopzington/anitools",
+    "authors": [
+        {
+            "name": "Koopz",
+            "email": "koopzington@gmail.com",
+            "homepage": "https://github.com/koopzington"
+        }
+    ],
+    "license": "GPL-3.0-or-later",
+    "require": {
+        "ext-pdo_pgsql": "*",
+        "ext-pcntl": "*",
+        "react/event-loop": "^1.2",
+        "react/http": "^1.5",
+        "symfony/console": "^6.0",
+        "spatie/guzzle-rate-limiter-middleware": "^2.0",
+        "guzzlehttp/guzzle": "^7.4",
+        "doctrine/dbal": "^4.0",
+        "cocur/slugify": "^4.5",
+        "monolog/monolog": "^3.5",
+        "symfony/monolog-bridge": "^6.2",
+        "meilisearch/meilisearch-php": "^1.2",
+        "aura/router": "^3.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "AniTools\\": "src/AniTools"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "php-http/discovery": true,
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^1.10",
+        "squizlabs/php_codesniffer": "^3.9",
+        "slevomat/coding-standard": "^8.15"
+    }
+}

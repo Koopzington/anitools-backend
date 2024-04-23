@@ -1,0 +1,4 @@
+#!/bin/sh
+
+php /anitools-backend/cli.php app:scrape awc leaderboard
+php /anitools-backend/cli.php app:import awc-leaderboard

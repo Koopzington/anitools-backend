@@ -1,0 +1,5 @@
+www/vendor/
+postgres/
+meilisearch/
+.env
+docker-compose.override.yml

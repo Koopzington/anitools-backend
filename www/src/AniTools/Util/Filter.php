@@ -1,0 +1,217 @@
+<?php
+
+declare(strict_types=1);
+
+namespace AniTools\Util;
+
+final class Filter
+{
+    private const FILTER_TYPES = [
+        'and' => 'array',
+        'or' => 'array',
+        'not' => 'array',
+        'genre' => 'array_string',
+        'studio' => 'array_string',
+        'producer' => 'array_string',
+        'externalLink' => 'array_string',
+        'titleLike' => 'string',
+        'notesLike' => 'string',
+        'episodesMin' => 'int',
+        'episodesMax' => 'int',
+        'volumesMin' => 'int',
+        'volumesMax' => 'int',
+        'totalRuntimeMin' => 'int',
+        'totalRuntimeMax' => 'int',
+        'showAdult' => 'bool',
+        'hasReview' => 'bool',
+        'format' => 'array_string',
+        'source' => 'array_string',
+        'country' => 'array_string',
+        'airStatus' => 'array_string',
+        'airingStart' => 'fuzzydate',
+        'airingFinish' => 'fuzzydate',
+        'season' => 'array_string',
+        'year' => 'array_int',
+        'mcCountMin' => 'int',
+        'mcCountMax' => 'int',
+        'voiceActor' => 'array_int',
+        'staff' => 'array_int',
+        'tag' => 'array_string',
+        'awcCommunityList' => 'array_string',
+        'onlyScanlated' => 'bool',
+        'muPublisher' => 'array_string',
+        'muPublication' => 'array_string',
+        'userList' => 'array_string',
+        'nameLike' => 'string',
+        'bloodType' => 'array_string',
+        'gender' => 'array_string',
+        'birthdayFrom' => 'fuzzydate',
+        'birthdayUntil' => 'fuzzydate',
+        'deathdayFrom' => 'fuzzydate',
+        'deathdayUntil' => 'fuzzydate',
+        'userStartFrom' => 'fuzzydate',
+        'userFinishUntil' => 'fuzzydate',
+    ];
+
+    /** @var array<string, array<int, string>> */
+    private $filterEnums;
+
+    /** @var array<string, mixed> */
+    private array $filters = [];
+
+    /**
+     * @param array<string, mixed[]> $filterValues
+     * @param array<string, mixed> $rawFilters
+     */
+    public function __construct(array $filterValues, array $rawFilters)
+    {
+        $this->filterEnums = [];
+
+        if (isset($filterValues['format'])) {
+            $this->filterEnums['format'] = $filterValues['format'];
+        }
+        if (isset($filterValues['source'])) {
+            $this->filterEnums['source'] = $filterValues['source'];
+        }
+        if (isset($filterValues['country_of_origin'])) {
+            $this->filterEnums['country'] = $filterValues['country_of_origin'];
+        }
+        if (isset($filterValues['status'])) {
+            $this->filterEnums['airStatus'] = $filterValues['status'];
+        }
+        if (isset($filterValues['season'])) {
+            $this->filterEnums['season'] = $filterValues['season'];
+        }
+        if (isset($filterValues['genres'])) {
+            $this->filterEnums['genre'] = $filterValues['genres'];
+        }
+        if (isset($filterValues['tags'])) {
+            $this->filterEnums['tag'] = array_merge(...array_values($filterValues['tags']));
+        }
+        if (isset($filterValues['external_links'])) {
+            $this->filterEnums['externalLink'] = $filterValues['external_links'];
+        }
+        if (isset($filterValues['awc_community_lists'])) {
+            $this->filterEnums['awcCommunityList'] = $filterValues['awc_community_lists'];
+        }
+
+        foreach ($rawFilters as $filterType => $values) {
+            if (! isset(self::FILTER_TYPES[$filterType])) {
+                throw new \InvalidArgumentException('Filter type "' . $filterType . '" is not supported');
+            }
+
+            if (in_array($filterType, ['and', 'or', 'not'])) {
+                $this->filters[$filterType] = new Filter($filterValues, $values);
+
+                continue;
+            }
+
+            $dataType = self::FILTER_TYPES[$filterType];
+
+            $filteredValue = match ($dataType) {
+                'int' => (int) $values,
+                'string' => (string) $values,
+                'bool' => $values === 'true' || $values === true ? true : false,
+                'array' => $values,
+                'array_int' => $this->filterArray('int', $values),
+                'array_string' => $this->filterArray('string', $values),
+                'fuzzydate' => (string) $values,
+            };
+
+            // Check the values against the list of valid values if present
+            if (isset($this->filterEnums[$filterType])) {
+                if (str_contains($dataType, 'array_')) {
+                    $isValid = $this->validateArray($filterType, $filteredValue);
+                } else {
+                    $isValid = in_array($filteredValue, $this->filterEnums[$filterType]);
+                }
+                if (! $isValid) {
+                    throw new \InvalidArgumentException('Invalid values for filter type "' . $filterType . '"');
+                }
+            } elseif ($dataType === 'fuzzydate') {
+                if (! $this->validateFuzzyDate($filteredValue)) {
+                    throw new \InvalidArgumentException('Invalid values for filter type "' . $filterType . '"');
+                }
+            }
+
+            $this->filters[$filterType] = $filteredValue;
+        }
+    }
+
+    /** @return array<string, mixed> */
+    public function getValues(): array
+    {
+        $output = [];
+        foreach ($this->filters as $key => $value) {
+            if ($value instanceof Filter) {
+                $output[$key] = $value->getValues();
+            } else {
+                $output[$key] = $value;
+            }
+        }
+
+        return $output;
+    }
+
+    /**
+     * @param 'int' | 'string' $type
+     * @param array<'and' | 'or' | 'not', array<int, int | string>> $values
+     * @return array<'and' | 'or' | 'not', array<int, int | string>>
+     */
+    private function filterArray(string $type, array $values): array
+    {
+        $filtered = [];
+
+        foreach ($values as $andOrNot => $vs) {
+            foreach ($vs as $v) {
+                $filtered[$andOrNot][] = match ($type) {
+                    'int' => (int) $v,
+                    'string' => (string) $v,
+                };
+            }
+        }
+
+        return $filtered;
+    }
+
+    /** @param array<'and' | 'or' | 'not', array<int, int | string>> $values */
+    private function validateArray(string $filterType, array $values): bool
+    {
+        foreach ($values as $grouped) {
+            foreach ($grouped as $v) {
+                if (! in_array($v, $this->filterEnums[$filterType])) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private function validateFuzzyDate(string $value): bool
+    {
+        // Must be along the lines of 2000-01-01 or *-01-*, any other character isn't allowed
+        if (! preg_match('/(\d{4}|\*)-(\d{2}|\*)-(\d{2}|\*)/', $value)) {
+            return false;
+        }
+
+        list($year, $month, $day) = explode('-', $value);
+
+        if ($month !== '*' && ($month < 1 || $month > 12)) {
+            return false;
+        }
+
+        if ($day !== '*' && ($day < 1 || $day > 31)) {
+            return false;
+        }
+
+        // Check if full date is valid
+        if (is_numeric($year) && is_numeric($month) && is_numeric($day)) {
+            if (! checkdate((int) $month, (int) $day, (int) $year)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}

@@ -1,0 +1,54 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile
+    volumes:
+      - ./www:/anitools-backend
+    working_dir: /anitools-backend
+    entrypoint: php server.php
+    environment:
+      - DB_USER=${DB_USER}
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - MEILI_MASTERKEY=${MEILI_MASTERKEY}
+    depends_on:
+      - postgres
+  cron:
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile
+    volumes:
+      - ./www:/anitools-backend
+      - ./docker/php/leaderboard-crons:/etc/periodic/15min/leaderboard-crons:ro
+      - ./docker/php/scraper-crons:/etc/periodic/weekly/scraper-crons:ro
+    working_dir: /anitools-backend
+    command: crond -f
+    environment:
+      - DB_USER=${DB_USER}
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - MEILI_MASTERKEY=${MEILI_MASTERKEY}
+    depends_on:
+      - postgres
+  postgres:
+    image: postgres:16-alpine
+    volumes:
+      - ./postgres:/var/lib/postgresql/data
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_DB=${DB_DATABASE}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+  meilisearch:
+    image: getmeili/meilisearch:v1.7
+    restart: always
+    ports:
+      - "0.0.0.0:7700:7700"
+    volumes:
+      - ./meilisearch:/meili_data
+    environment:
+      - MEILI_MASTERKEY=${MEILI_MASTERKEY}
+    command: /bin/meilisearch --no-analytics --master-key ${MEILI_MASTERKEY}

@@ -1,0 +1,378 @@
+openapi: 3.1.0
+info:
+  title: AniTools Backend
+  description: |-
+    Backend for [AniTools](https://anitools.koopz.rocks)
+    
+    [GitHub Repo](https://github.com/Koopzington/anitools-backend/)
+  contact:
+    email: me@koopz.rocks
+  license:
+    name: GNU GENERAL PUBLIC LICENSE
+    url: https://www.gnu.org/licenses/gpl-3.0.en.html
+  version: 1.0.0
+servers:
+  - url: https://backend.anitools.koopz.rocks/
+tags:
+  - name: BetterList
+    description: Endpoints relevant for the use of BetterList
+  - name: Mapper
+    description: Endpoints relevant for the use of the Mapper
+  - name: Misc
+    description: Other endpoints
+paths:
+  /:
+    get:
+      tags:
+        - BetterList
+      summary: Search endpoint
+      description: This is where the media data comes from
+      parameters:
+        - name: length
+          in: query
+          description: amount of entries to return (1-100)
+          required: false
+          schema:
+            type: string
+        - name: start
+          in: query
+          description: The offset of the results to return. For example 100 to get the results 101 to 200.
+          required: false
+          schema:
+            type: string
+            
+  /signature:
+    get:
+      tags:
+        - Misc
+      summary: Receive a signature
+      description: Generates an SVG showing the provided user's ranking on the AWC leaderboard
+      parameters:
+        - name: username
+          in: query
+          description: AniList username
+          required: true
+          explode: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Returns the SVG
+          content:
+            image/svg+xml:
+              schema:
+                type: object
+                xml:
+                  name: svg
+                  namespace: http://www.w3.org/2000/svg
+  /userLists:
+    get:
+      tags:
+        - BetterList
+      summary: Get media lists for user
+      parameters:
+        - $ref: '#/components/parameters/user_name'
+        - $ref: '#/components/parameters/media_type'
+      responses:
+        '200':
+          description: The lists of the user for the specified media type
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      description: ID for the list
+                      examples:
+                        - 124340-a-0
+                    name:
+                      type: string
+                      description: name of the list
+                      examples:
+                        - Watching
+                    is_custom_list:
+                      type: boolean
+                      description: specifies whether the list is a custom list created by the user or an automated one (Planning/Watching/...)
+                      examples:
+                        - false
+                    amount_total:
+                      type: integer
+                      format: int32
+                      description: total amount of entries in that list
+                      examples:
+                        - 2
+                    amount_completed:
+                      type: integer
+                      format: int32
+                      description: amount of entries on the list that are marked as completed by the user
+                      examples:
+                        - 0
+        '400':
+          description: User either doesn't exist or is private
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        source:
+                          type: string
+                          description: source of the error
+                        message:
+                          type: string
+                          description: error message
+                      examples:
+                        - source: AniList
+                          message: User not found
+                        - source: Anilist
+                          message: Private User
+  /filterValues:
+    get:
+      tags:
+        - BetterList
+      summary: Get values for the filters
+      parameters:
+        - $ref: '#/components/parameters/media_type'
+      responses:
+        '200':
+          description: The lists of the user for the specified media type
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  format:
+                    description: All available formats
+                    type: array
+                    items:
+                      type: string
+                  source:
+                    description: All available sources
+                    type: array
+                    items:
+                      type: string
+                  country_of_origin:
+                    description: All available countries
+                    type: array
+                    items:
+                      type: string
+                  status:
+                    description: All available releasing status
+                    type: array
+                    items:
+                      type: string
+                  season:
+                    description: All available seasons
+                    type: array
+                    items:
+                      type: string
+                  season_year:
+                    description: All available season years
+                    type: array
+                    items:
+                      type: integer
+                  total_runtime:
+                    description: All total runtime values (filters accept any values though)
+                    type: array
+                    items:
+                      type: integer
+                  episodes:
+                    description: All total episode counts (filters accept any values though)
+                    type: array
+                    items:
+                      type: integer
+                  mcCount:
+                    description: All total main character counts (filters accept any values though)
+                    type: array
+                    items:
+                      type: integer
+                  genres:
+                    description: All available genres
+                    type: array
+                    items:
+                      type: string
+                  tags:
+                    description: All tag categories and their tags
+                    type: object
+                  external_links:
+                    description: All available external websites media can be linked to
+                    type: array
+                    items:
+                      type: string
+                  awc_community_lists:
+                    description: All available community lists
+                    type: array
+                    items:
+                      type: string
+  /searchForFilter/studio:
+    get:
+      summary: Search for the Studio filter on the frontend. Returns a list of studios that match the provided search term.
+      tags:
+        - BetterList
+      parameters:
+        - $ref: '#/components/parameters/q'
+      responses:
+        '200':
+          description: Returns results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/values'
+                examples: 
+                  -
+                    - value: Kyoto Animation
+                      text: Kyoto Animation
+                    - value: Kyotoma
+                      text: Kyotoma
+  /searchForFilter/muPublication:
+    get:
+      summary: Search for the Publication filter on the frontend. Returns a list of magazines that match the provided search term.
+      tags:
+        - BetterList
+      parameters:
+        - $ref: '#/components/parameters/q'
+      responses:
+        '200':
+          description: Returns results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/values'
+                examples: 
+                  -
+                    - value: Bessatsu Shounen Jump
+                      text: Bessatsu Shounen Jump
+                    - value: Gekkan Shounen Jump
+                      text: Gekkan Shounen Jump
+                    - value: Gekkan Shounen Jump Original
+                      text: Gekkan Shounen Jump Original
+                    - value: Gekkan Shounen Jump Zoukan
+                      text: Gekkan Shounen Jump Zoukan
+                    - value: Monthly Shounen Jump
+                      text: Monthly Shounen Jump
+                    - value: Shounen Jump +
+                      text: Shounen Jump +
+                    - value: Shounen Jump Cross
+                      text: Shounen Jump Cross
+                    - value: Shounen Jump GIGA
+                      text: Shounen Jump GIGA
+                    - value: Shounen Jump Giga
+                      text: Shounen Jump Giga
+                    - value: Shounen Jump Rookie
+                      text: Shounen Jump Rookie
+  /searchForFilter/muPublisher:
+    get:
+      summary: Search for the Publisher filter on the frontend. Returns a list of publishers that match the provided search term.
+      tags:
+        - BetterList
+      parameters:
+        - $ref: '#/components/parameters/q'
+      responses:
+        '200':
+          description: Returns results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/values'
+                examples:
+                  -
+                    - value: ASCII Media Works - Kadokawa Shoten
+                      text: ASCII Media Works - Kadokawa Shoten
+                    - value: Cygames - Kadokawa Shoten
+                      text: Cygames - Kadokawa Shoten
+                    - value: Enterbrain - Kadokawa Shoten
+                      text: Enterbrain - Kadokawa Shoten
+                    - value: Fujimi Shobo - Kadokawa Shoten
+                      text: Fujimi Shobo - Kadokawa Shoten
+                    - value: KADOKAWA
+                      text: KADOKAWA
+                    - value: KADOKAWA Bookwalker
+                      text: KADOKAWA Bookwalker
+                    - value: KADOKAWA TAIWAN CORPORATION
+                      text: KADOKAWA TAIWAN CORPORATION 
+  /staff:
+    get:
+      summary: Search for the Staff filter on the frontend. Returns a list of IDs and names that match the provided search term.
+      tags:
+        - BetterList
+      parameters:
+        - $ref: '#/components/parameters/q'
+      responses:
+        '200':
+          description: Returns results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/values'
+                examples:
+                  -
+                    - value: 101644
+                      text: Adachitoka 
+                    - value: 237012
+                      text: Akira Adachi
+                    - value: 156436
+                      text: Asumi Adachi
+                    - value: 184161
+                      text: Ataru Adachi
+                    - value: 240401
+                      text: Daijirou Adachi
+                    - value: 307011
+                      text: Emi Adachi
+                    - value: 310838
+                      text: Gouta Adachi
+                    - value: 258811
+                      text: Hana Adachi
+                    - value: 283584
+                      text: Hideo Adachi
+                    - value: 257141
+                      text: Hideo Adachi
+
+components:
+  parameters: 
+    q:
+      name: q
+      in: query
+      description: Search term
+      required: true
+      explode: true
+      schema:
+        type: string
+    user_name:
+      name: user_name
+      in: query
+      description: AniList username
+      required: true
+      schema:
+        type: string
+    media_type:
+      name: media_type
+      in: query
+      description: Media type
+      required: true
+      schema:
+        type: string
+        enum: 
+        - ANIME
+        - MANGA
+  schemas:
+    values:
+      type: array
+      items:
+        type: object
+        properties:
+          value:
+            type: string
+          text:
+            type: string
+  securitySchemes:
+    api_key:
+      type: apiKey
+      name: api_key
+      in: header
