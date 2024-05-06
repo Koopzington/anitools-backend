@@ -276,7 +276,7 @@ final class MapperService
                 $results[$id]['id'] = $id;
                 $results[$id]['voted'] = $suggestion['voted'] ?? false;
                 $results[$id]['score'] = $suggestion['score'] ?? 0;
-                $results[$id]['voters'] = $suggestion['voters'] ? json_decode($suggestion['voters'], true) : [];
+                $results[$id]['voters'] = isset($suggestion['voters']) ? json_decode($suggestion['voters'], true) : [];
                 $results[$id]['titles'] = $results[$id]['titles'] ? json_decode($results[$id]['titles'], true) : [];
                 $results[$id]['genres'] = $results[$id]['genres'] ? json_decode($results[$id]['genres'], true) : [];
                 $results[$id]['categories'] = $results[$id]['categories']
