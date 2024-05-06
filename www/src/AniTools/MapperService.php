@@ -158,8 +158,9 @@ final class MapperService
 
         // Search for existing votes (including votes for MU entries that Meili didn't list)
         $sel = $this->db->createQueryBuilder();
-        $sel->select('mangaupdates_id');
+        $sel->select('mangaupdates_id', 'jsonb_agg(u.user_name) as voters');
         $sel->from('mapping_votes');
+        $sel->join('mapping_votes', '"user"', 'u', 'u.id = mapping_votes.voted_by');
         $sel->where(
             $sel->expr()->eq('media_id', (string) $randomEntry['id']),
             $sel->expr()->neq('voted_by', (string) $user->id),
@@ -176,6 +177,7 @@ final class MapperService
             $suggestions[$vote['mangaupdates_id']] = [
                 'voted' => true,
                 'score' => 2,
+                'voters' => $vote['voters'],
             ];
         }
 
@@ -274,6 +276,7 @@ final class MapperService
                 $results[$id]['id'] = $id;
                 $results[$id]['voted'] = $suggestion['voted'] ?? false;
                 $results[$id]['score'] = $suggestion['score'] ?? 0;
+                $results[$id]['voters'] = $suggestion['voters'] ? json_decode($suggestion['voters'], true) : [];
                 $results[$id]['titles'] = $results[$id]['titles'] ? json_decode($results[$id]['titles'], true) : [];
                 $results[$id]['genres'] = $results[$id]['genres'] ? json_decode($results[$id]['genres'], true) : [];
                 $results[$id]['categories'] = $results[$id]['categories']
