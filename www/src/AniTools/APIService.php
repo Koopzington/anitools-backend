@@ -237,7 +237,11 @@ final class APIService
     ): array {
         $tagPercentageMin = 0;
         if (isset($values['tagPercentageMin'])) {
-            $tagPercentageMin = (int) $values['tagPercentageMin'];
+            $tagPercentageMin = $values['tagPercentageMin'];
+        }
+        $tagPercentageMax = 100;
+        if (isset($values['tagPercentageMax'])) {
+            $tagPercentageMax = $values['tagPercentageMax'];
         }
 
         $where = [];
@@ -247,7 +251,7 @@ final class APIService
             foreach ($values['or'] as $value) {
                 $value = str_replace("'", "''", $value);
                 if ($field === 'media.tags') {
-                    $or[] = "$field @@ '$accessor == \"$value\" && $[*].rank >= $tagPercentageMin'";
+                    $or[] = "$field @@ '$accessor == \"$value\" && $[*].rank >= $tagPercentageMin && $[*].rank <= $tagPercentageMax'";
                 } else {
                     $or[] = "$field @@ '$accessor == \"$value\"'";
                 }
@@ -259,7 +263,7 @@ final class APIService
             foreach ($values['and'] as $value) {
                 $value = str_replace("'", "''", $value);
                 if ($field === 'media.tags') {
-                    $where[] = "$field @@ '$accessor == \"$value\" && $[*].rank >= $tagPercentageMin'";
+                    $where[] = "$field @@ '$accessor == \"$value\" && $[*].rank >= $tagPercentageMin && $[*].rank <= $tagPercentageMax'";
                 } else {
                     $where[] = "$field @@ '$accessor == \"$value\"'";
                 }

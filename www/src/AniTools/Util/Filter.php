@@ -113,8 +113,8 @@ final class Filter
                 'string' => (string) $values,
                 'bool' => $values === 'true' || $values === true ? true : false,
                 'array' => $values,
-                'array_int' => $this->filterArray('int', $values),
-                'array_string' => $this->filterArray('string', $values),
+                'array_int' => $this->filterArray($filterType, 'int', $values),
+                'array_string' => $this->filterArray($filterType, 'string', $values),
                 'fuzzydate' => (string) $values,
             };
 
@@ -155,14 +155,19 @@ final class Filter
 
     /**
      * @param 'int' | 'string' $type
-     * @param array<'and' | 'or' | 'not', array<int, int | string>> $values
-     * @return array<'and' | 'or' | 'not', array<int, int | string>>
+     * @param array<'and' | 'or' | 'not' | 'tagPercentageMin' | 'tagPercentageMax', array<int, int | string>> $values
+     * @return array<'and' | 'or' | 'not' | 'tagPercentageMin' | 'tagPercentageMax', array<int, int | string>>
      */
-    private function filterArray(string $type, array $values): array
+    private function filterArray(string $filterType, string $type, array $values): array
     {
         $filtered = [];
 
         foreach ($values as $andOrNot => $vs) {
+            // Convert the minimum tag percentage to a number
+            if ($filterType === 'tag' && ($andOrNot === 'tagPercentageMin' || $andOrNot === 'tagPercentageMax')) {
+                $filtered[$andOrNot] = (int) $vs;
+                continue;
+            }
             foreach ($vs as $v) {
                 $filtered[$andOrNot][] = match ($type) {
                     'int' => (int) $v,
@@ -174,11 +179,22 @@ final class Filter
         return $filtered;
     }
 
-    /** @param array<'and' | 'or' | 'not', array<int, int | string>> $values */
+    /** 
+     * Checks whether the passed values are actually in the list of valid values
+     * @param array<'and' | 'or' | 'not' | 'tagPercentageMin' | 'tagPercentageMax', array<int, int | string>> $values
+     * */
     private function validateArray(string $filterType, array $values): bool
     {
-        foreach ($values as $grouped) {
-            foreach ($grouped as $v) {
+        foreach ($values as $groupName => $group) {
+            if ($filterType === 'tag' && ($groupName === 'tagPercentageMin' || $groupName === 'tagPercentageMax')) {
+                // $group is actually a number from 1-100 here
+                if ($group < 0 || $group > 100) {
+                    return false;
+                }
+                // Skip to next group as this is the only validation needed
+                continue;
+            }
+            foreach ($group as $v) {
                 if (! in_array($v, $this->filterEnums[$filterType])) {
                     return false;
                 }
@@ -197,10 +213,12 @@ final class Filter
 
         list($year, $month, $day) = explode('-', $value);
 
+        // Out of bounds check
         if ($month !== '*' && ($month < 1 || $month > 12)) {
             return false;
         }
 
+        // Out of bounds check
         if ($day !== '*' && ($day < 1 || $day > 31)) {
             return false;
         }
