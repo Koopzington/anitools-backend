@@ -251,7 +251,8 @@ final class APIService
             foreach ($values['or'] as $value) {
                 $value = str_replace("'", "''", $value);
                 if ($field === 'media.tags') {
-                    $or[] = "$field @@ '$accessor == \"$value\" && $[*].rank >= $tagPercentageMin && $[*].rank <= $tagPercentageMax'";
+                    $or[] = "jsonb_path_exists($field, '$[*] ? (@.tag == \"$value\" "
+                    . "&& @.rank >= $tagPercentageMin && @.rank <= $tagPercentageMax)')";
                 } else {
                     $or[] = "$field @@ '$accessor == \"$value\"'";
                 }
@@ -263,7 +264,8 @@ final class APIService
             foreach ($values['and'] as $value) {
                 $value = str_replace("'", "''", $value);
                 if ($field === 'media.tags') {
-                    $where[] = "$field @@ '$accessor == \"$value\" && $[*].rank >= $tagPercentageMin && $[*].rank <= $tagPercentageMax'";
+                    $where[] = "jsonb_path_exists($field, '$[*] ? (@.tag == \"$value\" "
+                    . "&& @.rank >= $tagPercentageMin && @.rank <= $tagPercentageMax)')";
                 } else {
                     $where[] = "$field @@ '$accessor == \"$value\"'";
                 }
