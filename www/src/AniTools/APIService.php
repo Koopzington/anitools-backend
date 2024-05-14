@@ -204,22 +204,22 @@ final class APIService
         if (array_key_exists('or', $values)) {
             $clone = clone $qb;
             $clone->andWhere($clone->expr()->in($field, array_map([$clone->expr(), 'literal'], $values['or'])));
-            $where[] = "exists ($clone)";
+            $where[] = "media.id in ($clone)";
         }
 
         if (array_key_exists('and', $values)) {
             foreach ($values['and'] as $v) {
                 $clone = clone $qb;
-                $clone->andWhere($clone->expr()->eq($field, $clone->expr()->literal($v)));
-                $where[] = "exists ($clone)";
+                $clone->andWhere($clone->expr()->eq($field, $clone->expr()->literal((string) $v)));
+                $where[] = "media.id in ($clone)";
             }
         }
 
         if (array_key_exists('not', $values)) {
             foreach ($values['not'] as $v) {
                 $clone = clone $qb;
-                $clone->andWhere($clone->expr()->eq($field, $clone->expr()->literal($v)));
-                $where[] = "not exists ($clone)";
+                $clone->andWhere($clone->expr()->eq($field, $clone->expr()->literal((string) $v)));
+                $where[] = "media.id not in ($clone)";
             }
         }
 
@@ -379,16 +379,15 @@ final class APIService
         // In case of dates in user_media do a subquery instead
         if (isset($mapped['col']) && strpos($mapped['col'], 'user_media') === 0) {
             $sub = $this->db->createQueryBuilder();
-            $sub->select('1');
+            $sub->select('media_id');
             $sub->from('user_media');
             $sub->innerJoin('user_media', '"user"', '"user"', 'user_media.user_id = "user".id');
             $sub->where(
                 $sub->expr()->eq('lower("user".user_name)', "'" . strtolower($userName) . "'"),
-                $sub->expr()->eq('media.id', 'user_media.media_id'),
                 ...$where
             );
 
-            return [ "exists ($sub)" ];
+            return [ "media.id in ($sub)" ];
         }
 
         return $where;
@@ -554,50 +553,46 @@ final class APIService
 
             if ($key === 'mcCountMin' && $value !== 0) {
                 $sub = $this->db->createQueryBuilder();
-                $sub->select('1');
+                $sub->select('media_id');
                 $sub->from('media_characters');
                 $sub->where(
                     $sub->expr()->eq('media_characters.role', "'MAIN'"),
-                    $sub->expr()->eq('media.id', 'media_characters.media_id')
                 );
                 $sub->groupBy('media_id');
                 $sub->having(
-                    $sub->expr()->gte('COUNT(distinct character_id)', $value)
+                    $sub->expr()->gte('COUNT(distinct character_id)', (string) $value)
                 );
 
-                $where[] = "exists ($sub)";
+                $where[] = "media.id in ($sub)";
             }
 
             if ($key === 'mcCountMax' && $value !== 0) {
                 $sub = $this->db->createQueryBuilder();
-                $sub->select('1');
+                $sub->select('media_id');
                 $sub->from('media_characters');
                 $sub->where(
                     $sub->expr()->eq('media_characters.role', "'MAIN'"),
-                    $sub->expr()->eq('media.id', 'media_characters.media_id')
                 );
                 $sub->groupBy('media_id');
                 $sub->having(
                     $sub->expr()->gt('COUNT(distinct character_id)', (string) $value)
                 );
 
-                $where[] = "not exists ($sub)";
+                $where[] = "media.id not in ($sub)";
             }
 
             if ($key === 'voiceActor') {
                 $sub = $this->db->createQueryBuilder();
-                $sub->select('1');
+                $sub->select('media_id');
                 $sub->from('media_characters');
-                $sub->where($sub->expr()->eq('media.id', 'media_characters.media_id'));
 
                 $where = array_merge($where, $this->getSubClausesFor($sub, 'media_characters.voice_actor_id', $value));
             }
 
             if ($key === 'staff') {
                 $sub = $this->db->createQueryBuilder();
-                $sub->select('1');
+                $sub->select('media_id');
                 $sub->from('media_staff');
-                $sub->where($sub->expr()->eq('media.id', 'media_staff.media_id'));
 
                 $where = array_merge($where, $this->getSubClausesFor($sub, 'media_staff.staff_id', $value));
             }
@@ -611,9 +606,8 @@ final class APIService
 
             if ($key === 'awcCommunityList') {
                 $sub = $this->db->createQueryBuilder();
-                $sub->select('1');
+                $sub->select('media_id');
                 $sub->from('awc_community_lists');
-                $sub->where($sub->expr()->eq('media.id', 'awc_community_lists.media_id'));
 
                 $where = array_merge(
                     $where,
@@ -623,7 +617,7 @@ final class APIService
 
             if ($key === 'onlyScanlated' && $value === true) {
                 $sub = $this->db->createQueryBuilder();
-                $sub->select('1');
+                $sub->select('media_id');
                 $sub->from('mangaupdates');
                 $sub->innerJoin(
                     'mangaupdates',
@@ -632,16 +626,15 @@ final class APIService
                     'mei.service = \'MangaUpdates\' AND CAST(mei.external_id as bigint) = mangaupdates.id'
                 );
                 $sub->where(
-                    $sub->expr()->eq('media.id', 'mei.media_id'),
                     $sub->expr()->eq('scanlation_completed', 'true')
                 );
-                $where[] = "exists ($sub)";
+                $where[] = "media.id in ($sub)";
             }
 
             if ($key === 'muPublisher') {
                 // Hardcoded because DBAL doesn't support cross joins
                 $sub = $this->db->createQueryBuilder();
-                $sub->select('1');
+                $sub->select('media_id');
                 $sub->from('mangaupdates');
                 $sub->innerJoin(
                     'mangaupdates',
@@ -655,15 +648,12 @@ final class APIService
                     'mei',
                     'mei.service = \'MangaUpdates\' and cast(mei.external_id as bigint) = mangaupdates.id'
                 );
-                $sub->where(
-                    $sub->expr()->eq('media.id', 'mei.media_id'),
-                );
                 $where = array_merge($where, $this->getSubClausesFor($sub, 'publisher_name', $value));
             }
 
             if ($key === 'muPublication') {
                 $sub = $this->db->createQueryBuilder();
-                $sub->select('1');
+                $sub->select('media_id');
                 $sub->from('mangaupdates');
                 $sub->innerJoin(
                     'mangaupdates',
@@ -677,9 +667,6 @@ final class APIService
                     'mei',
                     'mei.service = \'MangaUpdates\' and cast(mei.external_id as bigint) = mangaupdates.id'
                 );
-                $sub->where(
-                    $sub->expr()->eq('media.id', 'mei.media_id'),
-                );
                 $where = array_merge($where, $this->getSubClausesFor($sub, 'publication_name', $value));
             }
 
@@ -692,7 +679,7 @@ final class APIService
                 }
 
                 $customSub = $this->db->createQueryBuilder();
-                $customSub->select('1');
+                $customSub->select('media_id');
                 $customSub->from('user_media_list');
                 $customSub->innerJoin(
                     'user_media_list',
@@ -700,15 +687,13 @@ final class APIService
                     'ul',
                     'ul.id = user_media_list.list_id'
                 );
-                $customSub->where($customSub->expr()->eq('media.id', 'user_media_list.media_id'));
 
                 $allSub = $this->db->createQueryBuilder();
-                $allSub->select('1');
+                $allSub->select('media_id');
                 $allSub->from('user_media');
                 $allSub->innerJoin('user_media', '"user"', '"user"', 'user_media.user_id = "user".id');
                 $allSub->where(
                     $allSub->expr()->eq('lower("user".user_name)', "'" . strtolower($userName) . "'"),
-                    $allSub->expr()->eq('media.id', 'user_media.media_id'),
                 );
 
 
@@ -741,19 +726,19 @@ final class APIService
 
                 if (isset($allLists['and'])) {
                     foreach ($allLists['and'] as $s) {
-                        $where[] = "exists($s)";
+                        $where[] = "media.id in ($s)";
                     }
                 }
                 if (isset($allLists['or'])) {
                     $t = [];
                     foreach ($allLists['or'] as $s) {
-                        $t[] = "exists($s)";
+                        $t[] = "media.id in ($s)";
                     }
                     $where[] = $qb->expr()->or(...$t);
                 }
                 if (isset($allLists['not'])) {
                     foreach ($allLists['not'] as $s) {
-                        $where[] = "not exists ($s)";
+                        $where[] = "media.id not in ($s)";
                     }
                 }
             }
@@ -1511,7 +1496,7 @@ final class APIService
             if ($row['name_last'] !== null) {
                 $label .= ' ' . $row['name_last'];
             }
-            $output[] = ['value' => $row['id'], 'text' => $label];
+            $output[] = ['value' => (string) $row['id'], 'text' => $label];
         }
 
         return $output;
@@ -1558,7 +1543,7 @@ final class APIService
 
         $output = [];
         foreach ($result as $row) {
-            $output[] = ['value' => $row['value'], 'text' => $row['value']];
+            $output[] = ['value' => (string) $row['value'], 'text' => $row['value']];
         }
 
         return $output;

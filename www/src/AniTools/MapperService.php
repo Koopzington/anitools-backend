@@ -83,9 +83,7 @@ final class MapperService
         $sub->from('media_external_ids');
         $sub->where(
             $sub->expr()->or(
-                $sub->expr()->eq('source', "'AniTools'"),
-                $sub->expr()->eq('source', "'Animeshon'"),
-                $sub->expr()->eq('source', "'MangaDex'"),
+                $sub->expr()->in('source', ["'AniTools'", "'Animeshon'", "'MangaDex'"]),
             ),
             $sub->expr()->eq('service', "'MangaUpdates'"),
         );
@@ -98,26 +96,18 @@ final class MapperService
             $sub2->expr()->eq('voted_by', (string) $user->id),
         );
 
-        // Subselect to get the amount of "not found" votes for each entry to prevent the same entries
-        // users already voted against from reappearing
+        // Subselect to get the amounts of existing votes as well as "not found" votes for each entry to prevent the
+        // same entries users already voted against from reappearing
         $sub3 = $this->db->createQueryBuilder();
-        $sub3->select('media_id', 'count(*) as votes');
-        $sub3->from('mapping_votes');
-        $sub3->where($sub3->expr()->isNull('mangaupdates_id'));
-        $sub3->groupBy('media_id');
-        $sel->leftJoin('media', '(' . (string) $sub3 . ')', 'unmappable', 'unmappable.media_id = media.id');
-
-        // Subselect to get the amount of votes for each entry for ordering and prioritizing letting users reviewe
-        // votes made by others
-        $sub4 = $this->db->createQueryBuilder();
-        $sub4->select('media_id', 'count(*) as votes');
-        $sub4->from('mapping_votes');
-        $sub4->where(
-            $sub4->expr()->isNotNull('mangaupdates_id'),
-            $sub4->expr()->neq('voted_by', (string) $user->id),
+        $sub3->select(
+            'media_id',
+            'count(*) FILTER(WHERE mangaupdates_id IS NULL) as unmappable_votes',
+            'count(*) FILTER(WHERE mangaupdates_id IS NOT NULL AND voted_by <> ' . $user->id . ') as already_voted',
         );
-        $sub4->groupBy('media_id');
-        $sel->leftJoin('media', '(' . (string) $sub4 . ')', 'already_voted', 'already_voted.media_id = media.id');
+        $sub3->from('mapping_votes');
+        //$sub3->where($sub3->expr()->isNull('mangaupdates_id'));
+        $sub3->groupBy('media_id');
+        $sel->leftJoin('media', '(' . (string) $sub3 . ')', 'vote_counts', 'vote_counts.media_id = media.id');
 
         $sel->where(
             $sel->expr()->eq('media.media_type', "'MANGA'"),
@@ -141,8 +131,8 @@ final class MapperService
         $whereClauses = $this->apiService->getWhereClauses($filters, $sel, $user->userName);
         $sel->andWhere(...$whereClauses);
 
-        $sel->addOrderBy('already_voted.votes', 'desc nulls last');
-        $sel->addOrderBy('unmappable.votes', 'asc nulls first');
+        $sel->addOrderBy('vote_counts.already_voted', 'desc nulls last');
+        $sel->addOrderBy('vote_counts.unmappable_votes', 'asc nulls first');
         $sel->addOrderBy('random()');
         $sel->setMaxResults(1);
         $this->log->debug((string) $sel);
