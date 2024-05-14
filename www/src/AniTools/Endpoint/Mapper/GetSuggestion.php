@@ -50,10 +50,16 @@ final class GetSuggestion implements EndpointInterface
 
         $postParams = json_decode((string) $request->getBody(), true);
 
+        $result = $this->mapperService->getMappingSuggestion($user, $postParams);
+
+        $responseHeaders = $response->getHeaders();
+        $responseHeaders['Server-Timing'] = implode(',', $result['timings']);
+        unset($result['timings']);
+
         return new Response(
             200,
-            $response->getHeaders(),
-            json_encode($this->mapperService->getMappingSuggestion($user, $postParams), JSON_UNESCAPED_UNICODE),
+            $responseHeaders,
+            json_encode($result, JSON_UNESCAPED_UNICODE),
         );
     }
 }
