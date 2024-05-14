@@ -186,6 +186,10 @@ final class MangaUpdates implements ScraperInterface
                 $variables['type'] = self::MANGA_TYPES;
             } else {
                 $this->iterate($pageSize, $totalHits, $variables);
+                // Jump back to beginning of the loop if the type has changed
+                if ($variables['type'] !== self::MANGA_TYPES) {
+                    continue;
+                }
             }
 
             $yearProgressBar->advance();
@@ -237,13 +241,14 @@ final class MangaUpdates implements ScraperInterface
                 break;
             }
 
+            foreach ($response['results'] as $result) {
+                $this->data[$result['record']['series_id']] = $result['record']['last_updated']['timestamp'];
+            }
+
             $this->debugData[] = [
                 'requestVars' => $variables,
                 'response' => $response,
             ];
-            foreach ($response['results'] as $result) {
-                $this->data[$result['record']['series_id']] = $result['record']['last_updated']['timestamp'];
-            }
 
             $this->progress = $variables;
             $this->progressBar->advance(\count($response['results']));
