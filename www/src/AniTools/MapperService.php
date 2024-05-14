@@ -135,7 +135,7 @@ final class MapperService
         $sel->addOrderBy('vote_counts.unmappable_votes', 'asc nulls first');
         $sel->addOrderBy('random()');
         $sel->setMaxResults(1);
-        $this->log->debug((string) $sel);
+        $this->log->debug((string) $sel, ['username' => '(' . ($user->userName) . ') ']);
 
         $randomEntry = $sel->executeQuery()->fetchAssociative();
         $timings[] = 'db-al-entry;dur=' . ((microtime(true) - $tStart) * 1000);
@@ -164,7 +164,7 @@ final class MapperService
 
         // Put IDs of voted entries in front of the IDs from the search on Meili
         $suggestions = [];
-        $this->log->debug((string) $sel);
+        $this->log->debug((string) $sel, ['username' => '(' . ($user->userName) . ') ']);
         $votes = $sel->executeQuery()->fetchAllAssociative();
         $timings[] = 'db-existing-votes;dur=' . ((microtime(true) - $tStart) * 1000);
         $tStart = microtime(true);
@@ -188,17 +188,26 @@ final class MapperService
         if ($randomEntry['format'] === 'NOVEL') {
             $searchTitle .= ' Novel';
         }
-        $this->log->debug('Searching Meili for "' . $searchTitle . '"');
+        $this->log->debug('Searching Meili for "' . $searchTitle . '"', ['username' => '(' . ($user->userName) . ') ']);
         $meiliResult = $this->meili->getIndex('mangaupdates')->search($searchTitle, $searchParams);
-        $this->log->debug('Meili found ' . $meiliResult->count() . ' results');
+        $this->log->debug(
+            'Meili found ' . $meiliResult->count() . ' results',
+            ['username' => '(' . ($user->userName) . ') '],
+        );
 
         // If the native search yielded 0 results, try romaji instead
         if ($meiliResult->getHitsCount() === 0 && $searchTitle === $randomEntry['title_native']) {
-            $this->log->debug('Searching Meili for "' . $randomEntry['title_romaji'] . '"');
+            $this->log->debug(
+                'Searching Meili for "' . $randomEntry['title_romaji'] . '"',
+                ['username' => '(' . ($user->userName) . ') '],
+            );
             $meiliResult = $this->meili->getIndex('mangaupdates')->search($randomEntry['title_romaji'], $searchParams);
             $timings[] = 'meili-search;dur=' . ((microtime(true) - $tStart) * 1000);
             $tStart = microtime(true);
-            $this->log->debug('Meili found ' . $meiliResult->count() . ' results');
+            $this->log->debug(
+                'Meili found ' . $meiliResult->count() . ' results',
+                ['username' => '(' . ($user->userName) . ') '],
+            );
         }
 
         foreach ($meiliResult->getHits() as $result) {
@@ -258,7 +267,7 @@ final class MapperService
         $sel->from('staff');
         $sel->innerJoin('staff', 'media_staff', 'ms', 'staff.id = ms.staff_id');
         $sel->where($sel->expr()->eq('ms.media_id', (string) $result['al_entry']['id']));
-        $this->log->debug((string) $sel);
+        $this->log->debug((string) $sel, ['username' => '(' . ($user->userName) . ') ']);
         $staffResult = $sel->executeQuery()->fetchAllAssociative();
         $output['timings'][] = 'db-al-staff;dur=' . ((microtime(true) - $tStart) * 1000);
         $tStart = microtime(true);
@@ -273,7 +282,7 @@ final class MapperService
             $sel->select('*');
             $sel->from('mangaupdates');
             $sel->where($sel->expr()->in('id', array_keys($result['suggestions'])));
-            $this->log->debug((string) $sel);
+            $this->log->debug((string) $sel, ['username' => '(' . ($user->userName) . ') ']);
             $results = $sel->executeQuery()->fetchAllAssociativeIndexed();
             $output['timings'][] = 'db-mu-entries;dur=' . ((microtime(true) - $tStart) * 1000);
 
@@ -320,7 +329,7 @@ final class MapperService
                     'source' => "'AniTools'",
                 ]);
 
-                $this->log->debug((string) $ins);
+                $this->log->debug((string) $ins, ['username' => '(' . ($user->userName) . ') ']);
                 $ins->executeQuery();
             }
         } else {
@@ -332,7 +341,7 @@ final class MapperService
                     'mangaupdates_id' => 'null',
                     'voted_by' => $user->id,
                 ]);
-                $this->log->debug((string) $ins);
+                $this->log->debug((string) $ins, ['username' => '(' . ($user->userName) . ') ']);
                 $ins->executeQuery();
             } else {
                 foreach ($muIds as $muId) {
@@ -342,7 +351,7 @@ final class MapperService
                         'voted_by' => $user->id,
                         'is_multivote' => \count($muIds) > 1,
                     ]);
-                    $this->log->debug((string) $ins);
+                    $this->log->debug((string) $ins, ['username' => '(' . ($user->userName) . ') ']);
                     $ins->executeQuery();
                 }
             }
@@ -352,7 +361,7 @@ final class MapperService
         $upd->update('"user"');
         $upd->set('mapping_votes', 'mapping_votes + 1');
         $upd->where($upd->expr()->eq('id', (string) $user->id));
-        $this->log->debug((string) $upd);
+        $this->log->debug((string) $upd, ['username' => '(' . ($user->userName) . ') ']);
         $upd->executeQuery();
     }
 
@@ -407,7 +416,7 @@ final class MapperService
         $sel->where($sel->expr()->eq('media.media_type', "'MANGA'"));
         $sel->groupBy('mei.media_id is not null');
 
-        $this->log->debug((string) $sel);
+        $this->log->debug((string) $sel, ['username' => '(' . ($user->userName) . ') ']);
         $result = $sel->executeQuery()->fetchAllAssociativeIndexed();
         $timings[] = 'db-stats-1;dur=' . ((microtime(true) - $tStart) * 1000);
         $tStart = microtime(true);
@@ -418,7 +427,7 @@ final class MapperService
 
         $sel = $this->getBaseQuery($user);
         $sel->select('count(*) as amount');
-        $this->log->debug((string) $sel);
+        $this->log->debug((string) $sel, ['username' => '(' . ($user->userName) . ') ']);
         $result = $sel->executeQuery()->fetchAllAssociative();
         $stats['total_unvoted'] = $result[0]['amount'];
         $timings[] = 'db-stats-2;dur=' . ((microtime(true) - $tStart) * 1000);
@@ -427,7 +436,7 @@ final class MapperService
         $whereClauses = $this->apiService->getWhereClauses($filters, $sel, $user->userName);
         $sel->andWhere(...$whereClauses);
 
-        $this->log->debug((string) $sel);
+        $this->log->debug((string) $sel, ['username' => '(' . ($user->userName) . ') ']);
         $result = $sel->executeQuery()->fetchAllAssociative();
         $timings[] = 'db-stats-3;dur=' . ((microtime(true) - $tStart) * 1000);
 
