@@ -369,10 +369,78 @@ final class MapperService
         $this->log->debug((string) $sel);
         $result = $sel->executeQuery()->fetchAssociative();
 
+        // Manga isn't present in database, manually import it
         if ($result === false) {
+            try {
+                /** @var MangaUpdatesSeriesInfo */
+                $response = MangaUpdatesClient::request('series/' . $id);
+                $data = [
+                    'last_updated' => $response['last_updated']['timestamp'],
+                    'titles' => array_merge([$response['title']], array_map(function ($x) {
+                        return $x['title'];
+                    }, $response['associated'])),
+                    'description' => $response['description'],
+                    'type' => $response['type'],
+                    'year' => $response['year'],
+                    'cover' => $response['image']['url']['thumb'],
+                    'genres' => array_map(function ($x) {
+                        return $x['genre'];
+                    }, $response['genres']),
+                    'categories' => array_map(function ($x) {
+                        return $x['category'];
+                    }, $response['categories']),
+                    'latest_chapter' => $response['latest_chapter'],
+                    'original_status' => $response['status'],
+                    'licensed' => $response['licensed'],
+                    'scanlation_completed' => $response['completed'],
+                    'authors' => $response['authors'],
+                    'publishers' => $response['publishers'],
+                    'publications' => $response['publications'],
+                ];
+
+                // Write data into json file
+                $manuallyImported = [];
+                if (file_exists(self::MANUAL_MANGAUPDATES_IMPORTS_FILE)) {
+                    $manuallyImported = json_decode(file_get_contents(self::MANUAL_MANGAUPDATES_IMPORTS_FILE));
+                }
+                $manuallyImported[$response['series_id']] = $data;
+
+                file_put_contents(
+                    self::MANUAL_MANGAUPDATES_IMPORTS_FILE,
+                    json_encode($manuallyImported)
+                );
+
+                // Prepare data for insert into db
+                $data['id'] = $response['series_id'];
+                $data['titles'] = json_encode($data['titles'], JSON_UNESCAPED_UNICODE);
+                $data['genres'] = json_encode($data['genres'], JSON_UNESCAPED_UNICODE);
+                $data['categories'] = json_encode($data['categories'], JSON_UNESCAPED_UNICODE);
+                $data['authors'] = json_encode($data['authors'], JSON_UNESCAPED_UNICODE);
+                $data['publishers'] = json_encode($data['publishers'], JSON_UNESCAPED_UNICODE);
+                $data['publications'] = json_encode($data['publications'], JSON_UNESCAPED_UNICODE);
+                $data['last_updated'] = date('Y-m-d H:i:s', $data['last_updated']);
+
+                // Import into db
+                $ins = DBService::getBatchInsertFor('mangaupdates', [$data], 'mangaupdates_pk', true);
+                $this->log->debug((string) $ins);
+                $this->db->executeQuery($ins);
+
+                // Fetch again
+                $this->log->debug((string) $sel);
+                $result = $sel->executeQuery()->fetchAssociative();
+
+            } catch (RequestException $e) {
+                // Series got deleted
+                if ($e->getResponse()->getStatusCode() === 404) {
+                    throw new \UnexpectedValueException(
+                        'MangaUpdates reported that it couldn\'t find the given manga.'
+                    );
+                } else {
             throw new \UnexpectedValueException(
-                'MangaUpdates entry not found in database. It either doesn\'t exist or wasn\'t imported yet.'
+                        'MangaUpdates entry could not be loaded due to an unknown error. Please try again later.'
             );
+                }
+            }
         }
 
         $result['titles'] = $result['titles'] ? json_decode($result['titles'], true) : [];
