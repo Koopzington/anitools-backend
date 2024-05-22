@@ -30,7 +30,7 @@ final class Search implements EndpointInterface
     public function getRoute(): Route
     {
         $route = new Route();
-        $route->allows('GET');
+        $route->allows(['GET', 'POST']);
         $route->handler($this);
         $route->name('search');
         $route->path('/');
@@ -40,9 +40,13 @@ final class Search implements EndpointInterface
 
     public function __invoke(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $queryParams = $request->getQueryParams();
+        if ($request->getMethod() === 'GET') {
+            $params = $request->getQueryParams();
+        } else if ($request->getMethod() === 'POST') {
+            $params = json_decode((string) $request->getBody(), true);
+        }
 
-        if (! isset($queryParams['mediaType']) || ! in_array($queryParams['mediaType'], self::VALID_MEDIA_TYPES)) {
+        if (! isset($params['mediaType']) || ! in_array($params['mediaType'], self::VALID_MEDIA_TYPES)) {
             return new Response(
                 Response::STATUS_BAD_REQUEST,
                 $response->getHeaders(),
@@ -50,7 +54,7 @@ final class Search implements EndpointInterface
             );
         }
 
-        if (! isset($queryParams['columns'])) {
+        if (! isset($params['columns'])) {
             return new Response(
                 Response::STATUS_BAD_REQUEST,
                 $response->getHeaders(),
@@ -58,8 +62,8 @@ final class Search implements EndpointInterface
             );
         }
 
-        $length  = (int) ($queryParams['length'] ?? 100);
-        $start = (int) ($queryParams['start'] ?? 0);
+        $length  = (int) ($params['length'] ?? 100);
+        $start = (int) ($params['start'] ?? 0);
         // Nice try
         if ($length > 100) {
             $length = 100;
@@ -71,7 +75,7 @@ final class Search implements EndpointInterface
             $start = 0;
         }
 
-        $order = isset($queryParams['order']) ? $queryParams['order'] : [];
+        $order = isset($params['order']) ? $params['order'] : [];
         if (! is_array($order)) {
             return new Response(
                 Response::STATUS_BAD_REQUEST,
@@ -80,9 +84,9 @@ final class Search implements EndpointInterface
             );
         }
 
-        $draw = (int) ($queryParams['draw'] ?? 1);
+        $draw = (int) ($params['draw'] ?? 1);
 
-        $rawFilterValues = $queryParams['filter'] ?? [];
+        $rawFilterValues = $params['filter'] ?? [];
         if (! is_array($rawFilterValues)) {
             return new Response(
                 Response::STATUS_BAD_REQUEST,
@@ -90,23 +94,23 @@ final class Search implements EndpointInterface
                 json_encode(['error' => 'Query parameter "filter" should be an array']),
             );
         }
-        $filter = new Filter($this->apiService->getFilterValues($queryParams['mediaType']), $rawFilterValues);
+        $filter = new Filter($this->apiService->getFilterValues($params['mediaType']), $rawFilterValues);
 
         $columns = [];
-        foreach ($queryParams['columns'] as $c) {
+        foreach ($params['columns'] as $c) {
             // Visibility is an optional status that's only needed for DataTables
             // If people want to use the API outside of the frontend, they don't have to provide this bit
             $c['visible'] = (bool) ($c['visible'] ?? true);
             $columns[$c['name']] = $c;
         }
 
-        $userName = $queryParams['userName'] ?? null;
+        $userName = $params['userName'] ?? null;
 
         $filteredValues = $filter->getValues();
 
-        $results = match ($queryParams['mediaType']) {
+        $results = match ($params['mediaType']) {
             'ANIME' => $this->apiService->searchForMedia(
-                $queryParams['mediaType'],
+                $params['mediaType'],
                 $filteredValues,
                 $columns,
                 $start,
@@ -115,7 +119,7 @@ final class Search implements EndpointInterface
                 $userName
             ),
             'MANGA' => $this->apiService->searchForMedia(
-                $queryParams['mediaType'],
+                $params['mediaType'],
                 $filteredValues,
                 $columns,
                 $start,
