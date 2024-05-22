@@ -89,7 +89,7 @@ final class MapperService
         $sub->select('media_id');
         $sub->from('media_external_ids');
         $sub->where(
-                $sub->expr()->in('source', ["'AniTools'", "'Animeshon'", "'MangaDex'"]),
+            $sub->expr()->in('source', ["'AniTools'", "'Animeshon'", "'MangaDex'"]),
             $sub->expr()->eq('service', "'MangaUpdates'"),
         );
 
@@ -343,28 +343,100 @@ final class MapperService
         //        $ins->executeQuery();
         //    }
         //} else {
-            $ins->insert('mapping_votes');
-            // None found vote
-            if ($muIds === null) {
+        $ins->insert('mapping_votes');
+        // None found vote
+        if ($muIds === null) {
+            $ins->values([
+                'media_id' => $alId,
+                'mangaupdates_id' => 'null',
+                'voted_by' => $user->id,
+            ]);
+            $this->log->debug((string) $ins, ['username' => '(' . ($user->userName) . ') ']);
+            $ins->executeQuery();
+        } else {
+            foreach ($muIds as $muId) {
                 $ins->values([
                     'media_id' => $alId,
-                    'mangaupdates_id' => 'null',
+                    'mangaupdates_id' => $muId,
                     'voted_by' => $user->id,
+                    'is_multivote' => \count($muIds) > 1 ? 'true' : 'false',
                 ]);
                 $this->log->debug((string) $ins, ['username' => '(' . ($user->userName) . ') ']);
                 $ins->executeQuery();
+            }
+        }
+
+        // Check if votes passed threshold
+        $sel = $this->db->createQueryBuilder();
+        $sel->select('*');
+        $sel->from('mapping_votes');
+        $sel->where(
+            $sel->expr()->eq('media_id', (string) $alId),
+            // Ignore "None found" votes
+            $sel->expr()->isNotNull('mangaupdates_id'),
+            // Ignore automated votes
+            $sel->expr()->neq('voted_by', '0'),
+        );
+        $sel->orderBy('mangaupdates_id', 'asc');
+        $votes = $sel->executeQuery()->fetchAllAssociative();
+
+        $hasMultivote = false;
+        $votesByMUId = [];
+        $multiVotesByUser = [];
+        foreach ($votes as $vote) {
+            if ($vote['is_multivote'] === true) {
+                $hasMultivote = true;
+                $multiVotesByUser[$vote['voted_by']][] = $vote['mangaupdates_id'];
             } else {
-                foreach ($muIds as $muId) {
+                $votesByMUId[$vote['mangaupdates_id']][] = $vote;
+            }
+        }
+
+        // TODO: What if one of the users incorrectly did a multivote?
+        if (! $hasMultivote) {
+            foreach ($votesByMUId as $muId => $votes) {
+                // If 3 or more people voted on the same MU manga, create the mapping
+                if (\count($votes) >= 3) {
+                    $ins->insert('media_external_ids');
                     $ins->values([
                         'media_id' => $alId,
-                        'mangaupdates_id' => $muId,
-                        'voted_by' => $user->id,
-                    'is_multivote' => \count($muIds) > 1 ? 'true' : 'false',
+                        'external_id' => $muId,
+                        'service' => "'MangaUpdates'",
+                        'source' => "'AniTools'",
                     ]);
-                    $this->log->debug((string) $ins, ['username' => '(' . ($user->userName) . ') ']);
+    
+                    $this->log->debug((string) $ins);
                     $ins->executeQuery();
+
+                    break;
                 }
             }
+        } else {
+            $multiVotesByMUIds = [];
+            foreach ($multiVotesByUser as $u => $muIds) {
+                $multiVotesByMUIds[implode('-', $muIds)][] = $u;
+            }
+            foreach ($multiVotesByMUIds as $set => $votes) {
+                // Found the first multivote 3 or more people votes on
+                if (\count($votes) >= 3) {
+                    $muIds = explode('-', $set);
+                    $ins->insert('media_external_ids');
+                    foreach ($muIds as $muId) {
+                        $ins->values([
+                            'media_id' => $alId,
+                            'external_id' => $muId,
+                            'service' => "'MangaUpdates'",
+                            'source' => "'AniTools'",
+                        ]);
+
+                        $this->log->debug((string) $ins);
+                        $ins->executeQuery();
+                    }
+
+                    break;
+                }
+            }
+        }
         //}
         // Increase the user's mapping vote count
         $upd = $this->db->createQueryBuilder();
@@ -452,9 +524,9 @@ final class MapperService
                         'MangaUpdates reported that it couldn\'t find the given manga.'
                     );
                 } else {
-            throw new \UnexpectedValueException(
+                    throw new \UnexpectedValueException(
                         'MangaUpdates entry could not be loaded due to an unknown error. Please try again later.'
-            );
+                    );
                 }
             }
         }
