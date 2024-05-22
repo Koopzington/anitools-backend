@@ -848,8 +848,6 @@ final class Importer
             $this->output->writeln("<error>File: '$file' doesn't exist.</error>");
         }
 
-        //$this->db->executeQuery('TRUNCATE TABLE mangaupdates');
-
         $data = json_decode(file_get_contents($file), true);
 
         $forInserts = [];
