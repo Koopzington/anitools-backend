@@ -33,11 +33,7 @@ final class MapperService
         $sub->select('media_id');
         $sub->from('media_external_ids');
         $sub->where(
-            $sub->expr()->or(
-                $sub->expr()->eq('source', "'AniTools'"),
-                $sub->expr()->eq('source', "'Animeshon'"),
-                $sub->expr()->eq('source', "'MangaDex'"),
-            ),
+            $sub->expr()->in('source', ["'AniTools'", "'Animeshon'", "'MangaDex'"]),
             $sub->expr()->eq('service', "'MangaUpdates'"),
         );
         $sel->where(
@@ -82,9 +78,7 @@ final class MapperService
         $sub->select('media_id');
         $sub->from('media_external_ids');
         $sub->where(
-            $sub->expr()->or(
                 $sub->expr()->in('source', ["'AniTools'", "'Animeshon'", "'MangaDex'"]),
-            ),
             $sub->expr()->eq('service', "'MangaUpdates'"),
         );
 
