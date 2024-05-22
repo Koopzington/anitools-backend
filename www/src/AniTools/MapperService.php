@@ -311,6 +311,11 @@ final class MapperService
     /** @param null | array<int, int> $muIds */
     public function createMapping(int $alId, ?array $muIds, User $user): void
     {
+        // Making sure nobody submits the same muIds twice
+        if ($muIds !== null) {
+            $muIds = array_unique($muIds);
+        }
+
         $ins = $this->db->createQueryBuilder();
         // I know what i'm doing so my mappings directly go live ( ͡° ͜ʖ ͡°)
         if ($muIds !== null && $user->id === 124340) {
