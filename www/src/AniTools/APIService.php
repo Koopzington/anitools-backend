@@ -411,10 +411,16 @@ final class APIService
 
         foreach ($filters as $key => $value) {
             if ($key === 'and') {
-                $where[] = $qb->expr()->and(...$this->getWhereClauses($value, $qb, $userName));
+                $subClauses = $this->getWhereClauses($value, $qb, $userName);
+                if (\count($subClauses) > 0) {
+                    $where[] = $qb->expr()->and(...$subClauses);
+                }
             }
             if ($key === 'or') {
-                $where[] = $qb->expr()->or(...$this->getWhereClauses($value, $qb, $userName));
+                $subClauses = $this->getWhereClauses($value, $qb, $userName);
+                if (\count($subClauses) > 0) {
+                    $where[] = $qb->expr()->or(...$subClauses);
+                }
             }
 
             if (isset($valueCols[$key])) {
@@ -987,7 +993,7 @@ final class APIService
                 $userName === null
                 )
             ) {
-                $mapped[] = '\'\' AS ' . $this->db->quoteIdentifier($c['name']);
+                $mapped[] = 'null AS ' . $this->db->quoteIdentifier($c['name']);
             } else {
                 if ($c['name'] === 'id') {
                     $mapped[] = match ($mediaType) {
