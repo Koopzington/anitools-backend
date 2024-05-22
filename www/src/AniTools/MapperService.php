@@ -359,7 +359,7 @@ final class MapperService
                         'media_id' => $alId,
                         'mangaupdates_id' => $muId,
                         'voted_by' => $user->id,
-                        'is_multivote' => \count($muIds) > 1,
+                    'is_multivote' => \count($muIds) > 1 ? 'true' : 'false',
                     ]);
                     $this->log->debug((string) $ins, ['username' => '(' . ($user->userName) . ') ']);
                     $ins->executeQuery();
