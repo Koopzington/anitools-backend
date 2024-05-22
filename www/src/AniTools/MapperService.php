@@ -4,14 +4,25 @@ declare(strict_types=1);
 
 namespace AniTools;
 
+use AniTools\Util\MangaUpdatesClient;
 use AniTools\Util\User;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
+use GuzzleHttp\Exception\RequestException;
 use Meilisearch\Client;
 use Monolog\Logger;
 
+/**
+ * @phpstan-import-type MangaUpdatesSeriesInfo from AniTools\Scraper\MangaUpdates
+ */
 final class MapperService
 {
+    // File contains entries that were manually imported into the database by this class
+    // Either because it was added to MU after the last scrape or because it wasn't picked up by the scraper
+    // due to the manga not having a year. If the entries have a year, they'll be moved to the main import file
+    // by the time the next scrape runs while the entries without years will remain in this file.
+    public const MANUAL_MANGAUPDATES_IMPORTS_FILE = 'data/import/mangaupdates-manual-imports.json';
+
     public function __construct(
         private Connection $db,
         private Logger $log,
@@ -318,20 +329,20 @@ final class MapperService
 
         $ins = $this->db->createQueryBuilder();
         // I know what i'm doing so my mappings directly go live ( ͡° ͜ʖ ͡°)
-        if ($muIds !== null && $user->id === 124340) {
-            $ins->insert('media_external_ids');
-            foreach ($muIds as $muId) {
-                $ins->values([
-                    'media_id' => $alId,
-                    'external_id' => $muId,
-                    'service' => "'MangaUpdates'",
-                    'source' => "'AniTools'",
-                ]);
-
-                $this->log->debug((string) $ins, ['username' => '(' . ($user->userName) . ') ']);
-                $ins->executeQuery();
-            }
-        } else {
+        //if ($muIds !== null && $user->id === 124340) {
+        //    $ins->insert('media_external_ids');
+        //    foreach ($muIds as $muId) {
+        //        $ins->values([
+        //            'media_id' => $alId,
+        //            'external_id' => $muId,
+        //            'service' => "'MangaUpdates'",
+        //            'source' => "'AniTools'",
+        //        ]);
+        //
+        //        $this->log->debug((string) $ins, ['username' => '(' . ($user->userName) . ') ']);
+        //        $ins->executeQuery();
+        //    }
+        //} else {
             $ins->insert('mapping_votes');
             // None found vote
             if ($muIds === null) {
@@ -354,7 +365,7 @@ final class MapperService
                     $ins->executeQuery();
                 }
             }
-        }
+        //}
         // Increase the user's mapping vote count
         $upd = $this->db->createQueryBuilder();
         $upd->update('"user"');
