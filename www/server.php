@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use AniTools\DBService;
+use AniTools\Endpoint\EndpointInterface;
 use AniTools\Endpoint\FilterValues;
 use AniTools\Endpoint\Mapper\CreateMapping;
 use AniTools\Endpoint\Mapper\GetMangaUpdatesInfo;
@@ -134,6 +135,8 @@ $server = new React\Http\HttpServer(
                     );
             }
         }
+
+        /** @var EndpointInterface */
         $endpoint = $route->handler;
 
         // add route attributes to the request
