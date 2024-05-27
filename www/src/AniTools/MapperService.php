@@ -465,6 +465,7 @@ final class MapperService
             try {
                 /** @var MangaUpdatesSeriesInfo */
                 $response = MangaUpdatesClient::request('series/' . $id);
+
                 $data = [
                     'last_updated' => $response['last_updated']['timestamp'],
                     'titles' => array_merge([$response['title']], array_map(function ($x) {
@@ -492,7 +493,7 @@ final class MapperService
                 // Write data into json file
                 $manuallyImported = [];
                 if (file_exists(self::MANUAL_MANGAUPDATES_IMPORTS_FILE)) {
-                    $manuallyImported = json_decode(file_get_contents(self::MANUAL_MANGAUPDATES_IMPORTS_FILE));
+                    $manuallyImported = json_decode(file_get_contents(self::MANUAL_MANGAUPDATES_IMPORTS_FILE), true);
                 }
                 $manuallyImported[$response['series_id']] = $data;
 
