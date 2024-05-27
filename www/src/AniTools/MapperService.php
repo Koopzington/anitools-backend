@@ -344,12 +344,14 @@ final class MapperService
         //    }
         //} else {
         $ins->insert('mapping_votes');
+        $t = "'" . date('Y-m-d H:i:s') . "'";
         // None found vote
         if ($muIds === null) {
             $ins->values([
                 'media_id' => $alId,
                 'mangaupdates_id' => 'null',
                 'voted_by' => $user->id,
+                'voted_on' => $t,
             ]);
             $this->log->debug((string) $ins, ['username' => '(' . ($user->userName) . ') ']);
             $ins->executeQuery();
@@ -360,6 +362,7 @@ final class MapperService
                     'mangaupdates_id' => $muId,
                     'voted_by' => $user->id,
                     'is_multivote' => \count($muIds) > 1 ? 'true' : 'false',
+                    'voted_on' => $t,
                 ]);
                 $this->log->debug((string) $ins, ['username' => '(' . ($user->userName) . ') ']);
                 $ins->executeQuery();
