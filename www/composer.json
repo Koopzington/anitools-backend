@@ -24,7 +24,8 @@
         "monolog/monolog": "^3.5",
         "symfony/monolog-bridge": "^6.2",
         "meilisearch/meilisearch-php": "^1.2",
-        "aura/router": "^3.3"
+        "aura/router": "^3.3",
+        "ramsey/uuid": "^4.7"
     },
     "autoload": {
         "psr-4": {

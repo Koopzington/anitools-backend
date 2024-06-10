@@ -11,6 +11,8 @@ use Doctrine\DBAL\Query\QueryBuilder;
 use GuzzleHttp\Exception\RequestException;
 use Meilisearch\Client;
 use Monolog\Logger;
+use Ramsey\Uuid\Uuid;
+use Ramsey\Uuid\UuidInterface;
 
 /**
  * @phpstan-import-type MangaUpdatesSeriesInfo from AniTools\Scraper\MangaUpdates
@@ -99,6 +101,7 @@ final class MapperService
         $sub2->from('mapping_votes');
         $sub2->where(
             $sub2->expr()->eq('voted_by', (string) $user->id),
+            $sub2->expr()->eq('revoked', 'false'),
         );
 
         // Subselect to get the amounts of existing votes as well as "not found" votes for each entry to prevent the
@@ -107,10 +110,10 @@ final class MapperService
         $sub3->select(
             'media_id',
             'count(*) FILTER(WHERE mangaupdates_id IS NULL) as unmappable_votes',
-            'count(*) FILTER(WHERE mangaupdates_id IS NOT NULL AND voted_by <> ' . $user->id . ') as already_voted',
+            'count(*) FILTER(WHERE mangaupdates_id IS NOT NULL AND voted_by <> ' . $user->id
+                . ' AND revoked = false) as already_voted',
         );
         $sub3->from('mapping_votes');
-        //$sub3->where($sub3->expr()->isNull('mangaupdates_id'));
         $sub3->groupBy('media_id');
         $sel->leftJoin('media', '(' . (string) $sub3 . ')', 'vote_counts', 'vote_counts.media_id = media.id');
 
@@ -161,8 +164,9 @@ final class MapperService
         $sel->join('mapping_votes', '"user"', 'u', 'u.id = mapping_votes.voted_by');
         $sel->where(
             $sel->expr()->eq('media_id', (string) $randomEntry['id']),
-            $sel->expr()->neq('voted_by', (string) $user->id),
-            $sel->expr()->isNotNull('mangaupdates_id'),
+            //$sel->expr()->neq('voted_by', (string) $user->id), // People don't see the stuff they voted on again, why?
+            //$sel->expr()->isNotNull('mangaupdates_id'),
+            $sel->expr()->eq('revoked', 'false'),
         );
         $sel->groupBy('mangaupdates_id');
         $sel->orderBy('count(*)', 'desc');
@@ -173,7 +177,13 @@ final class MapperService
         $votes = $sel->executeQuery()->fetchAllAssociative();
         $timings[] = 'db-existing-votes;dur=' . ((microtime(true) - $tStart) * 1000);
         $tStart = microtime(true);
+
+        $notFoundVotes = '';
         foreach ($votes as $vote) {
+            if ($vote['mangaupdates_id'] === null) {
+                $notFoundVotes = $vote['voters'];
+                continue;
+            }
             $suggestions[$vote['mangaupdates_id']] = [
                 'voted' => true,
                 'score' => 2,
@@ -234,6 +244,7 @@ final class MapperService
             'al_entry' => $randomEntry,
             'suggestions' => $suggestions,
             'timings' => $timings,
+            'not_found_votes' => $notFoundVotes,
         ];
     }
 
@@ -281,6 +292,7 @@ final class MapperService
         $alEntry['authors'] = $staffResult;
 
         $suggestions = [];
+
         if (\count($result['suggestions']) > 0) {
             // Get the mangaupdates rows meili returned
             $sel = $this->db->createQueryBuilder();
@@ -315,6 +327,7 @@ final class MapperService
 
         $output['suggestions'] = $suggestions;
         $output['al_entry'] = $alEntry;
+        $output['not_found_votes'] = json_decode($result['not_found_votes'], true);
 
         return $output;
     }
@@ -345,24 +358,29 @@ final class MapperService
         //} else {
         $ins->insert('mapping_votes');
         $t = "'" . date('Y-m-d H:i:s') . "'";
+        $uuid = "'" . Uuid::uuid4() . "'";
         // None found vote
         if ($muIds === null) {
             $ins->values([
+                'id' => $uuid,
                 'media_id' => $alId,
                 'mangaupdates_id' => 'null',
                 'voted_by' => $user->id,
                 'voted_on' => $t,
+                'revoked' => 'false',
             ]);
             $this->log->debug((string) $ins, ['username' => '(' . ($user->userName) . ') ']);
             $ins->executeQuery();
         } else {
             foreach ($muIds as $muId) {
                 $ins->values([
+                    'id' => $uuid,
                     'media_id' => $alId,
                     'mangaupdates_id' => $muId,
                     'voted_by' => $user->id,
                     'is_multivote' => \count($muIds) > 1 ? 'true' : 'false',
                     'voted_on' => $t,
+                    'revoked' => 'false',
                 ]);
                 $this->log->debug((string) $ins, ['username' => '(' . ($user->userName) . ') ']);
                 $ins->executeQuery();
@@ -379,6 +397,8 @@ final class MapperService
             $sel->expr()->isNotNull('mangaupdates_id'),
             // Ignore automated votes
             $sel->expr()->neq('voted_by', '0'),
+            // Ignore revoked votes
+            $sel->expr()->eq('revoked', 'false'),
         );
         $sel->orderBy('mangaupdates_id', 'asc');
         $votes = $sel->executeQuery()->fetchAllAssociative();
@@ -598,5 +618,99 @@ final class MapperService
         $stats['timings'] = $timings;
 
         return $stats;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getUserVotesFor(User $user, int $length, int $start): array
+    {
+        $output = [];
+
+        $sel = $this->db->createQueryBuilder();
+        $sel->from('mapping_votes');
+        $sel->where(
+            $sel->expr()->eq('voted_by', (string) $user->id),
+            $sel->expr()->eq('revoked', 'false'),
+        );
+        $sel->select('count(mapping_votes.id) as total');
+        $this->log->debug((string) $sel);
+        $total = $sel->executeQuery()->fetchAssociative();
+        $total = $total['total'];
+        
+        $sel->select(
+            'mapping_votes.id as mv_id',
+            'mapping_votes.voted_on',
+            'jsonb_agg_strict(mangaupdates.*) as voted_entries',
+            'media.*',
+            'mei.mapped_entries',
+        );
+
+        // We need to aggregate the mapped entries to prevent two left joins from duplicating all rows
+        $sub = $this->db->createQueryBuilder();
+        $sub->select('media_id', 'jsonb_agg_strict(mangaupdates.*) as mapped_entries');
+        $sub->from('media_external_ids');
+        $sub->innerJoin('media_external_ids', 'mangaupdates', 'mangaupdates', 'mangaupdates.id =  external_id::bigint');
+        $sub->where(
+            $sub->expr()->eq('service', "'MangaUpdates'"),
+            $sub->expr()->eq('source', "'AniTools'"),
+        );
+        $sub->groupBy('media_id');
+        
+        $sel->innerJoin('mapping_votes', 'media', 'media', 'media.id = mapping_votes.media_id');
+        $sel->leftJoin('mapping_votes', '(' . $sub . ')', 'mei', 'mei.media_id = mapping_votes.media_id');
+        $sel->leftJoin('mapping_votes', 'mangaupdates', 'mangaupdates', 'mangaupdates.id = mapping_votes.mangaupdates_id');
+        $sel->groupBy('mapping_votes.id', 'media.id', 'voted_on', 'mei.mapped_entries');
+        $sel->orderBy('voted_on', 'desc');
+        $sel->setMaxResults($length);
+        $sel->setFirstResult($start);
+
+        $this->log->debug((string) $sel);
+        $results = $sel->executeQuery()->fetchAllAssociative();
+
+        foreach ($results as $result) {
+            // Convert json into arrays
+            if ($result['voted_entries'] !== null) {
+                $result['voted_entries'] = json_decode($result['voted_entries'], true);
+            }
+
+            if ($result['mapped_entries'] !== null) {
+                $result['mapped_entries'] = json_decode($result['mapped_entries'], true);
+            }
+
+            $output[] = $result;
+        }
+
+        return [
+            'total' => $total,
+            'data' => $output,
+        ];
+    }
+
+    public function revokeVote(User $user, UuidInterface $voteId): void
+    {
+        // Check if the provided user is actually the owner of the vote
+        $sel = $this->db->createQueryBuilder();
+        $sel->select('*');
+        $sel->from('mapping_votes');
+        $sel->where(
+            $sel->expr()->eq('voted_by', (string) $user->id),
+            $sel->expr()->eq('id', "'" . $voteId->toString() . "'"),
+        );
+        $this->log->debug((string) $sel);
+        $result = $sel->executeQuery();
+        
+        if ($result->rowCount() === 0) {
+            throw new \InvalidArgumentException("user ID and vote ID don't match");
+        }
+
+        $upd = $this->db->createQueryBuilder();
+        $upd->update('mapping_votes');
+        $upd->set('revoked', 'true');
+        $upd->where(
+            $upd->expr()->eq('id', "'" . $voteId->toString() . "'"),
+        );
+        $this->log->debug((string) $upd);
+        $upd->executeQuery();
     }
 }

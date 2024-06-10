@@ -8,7 +8,9 @@ use AniTools\Endpoint\FilterValues;
 use AniTools\Endpoint\Mapper\CreateMapping;
 use AniTools\Endpoint\Mapper\GetMangaUpdatesInfo;
 use AniTools\Endpoint\Mapper\GetSuggestion;
+use AniTools\Endpoint\Mapper\GetUserVotes;
 use AniTools\Endpoint\Mapper\NoneFound;
+use AniTools\Endpoint\Mapper\RevokeVote;
 use AniTools\Endpoint\Search;
 use AniTools\Endpoint\SearchForFilter;
 use AniTools\Endpoint\SearchStaff;
@@ -72,6 +74,8 @@ $endpoints = [
     new GetMangaUpdatesInfo($mapperService),
     new CreateMapping($mapperService),
     new NoneFound($mapperService),
+    new GetUserVotes($mapperService),
+    new RevokeVote($mapperService),
     new Signature($svgGenerator),
     new FilterValues($backend),
     new SearchForFilter($backend),
