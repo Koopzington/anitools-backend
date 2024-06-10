@@ -988,9 +988,11 @@ final class APIService
             // Return an empty string if the column isn't visible. DataTables freaks out if a column isn't in the
             // response. Also return an empty string if no username was given for user_media columns
             if (
-                $c['visible'] === false || (
-                strpos(self::COLUMN_MAP[$c['name']], 'user_media') !== false &&
-                $userName === null
+                $c['name'] !== 'id' && (
+                    $c['visible'] === false || (
+                        strpos(self::COLUMN_MAP[$c['name']], 'user_media') !== false &&
+                        $userName === null
+                    )
                 )
             ) {
                 $mapped[] = 'null AS ' . $this->db->quoteIdentifier($c['name']);
