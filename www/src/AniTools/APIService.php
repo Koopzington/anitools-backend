@@ -514,6 +514,32 @@ final class APIService
                     $qb->expr()->isNull('total_duration'),
                 );
             }
+            // Minimum Mean Score
+            if ($key === 'meanScoreMin' && $value !== 0) {
+                $where[] = $qb->expr()->gte('mean_score', (string) $value);
+            }
+            // Maximum Mean Score
+            if ($key === 'meanScoreMax' && $value !== 0) {
+                // The db doesn't consider null = 0 so we gotta include the null values
+                // If minimum episodes > 0 the null values will get filtered out again
+                $where[] = $qb->expr()->or(
+                    $qb->expr()->lte('mean_score', (string) $value),
+                    $qb->expr()->isNull('mean_score'),
+                );
+            }
+            // Minimum Average Score
+            if ($key === 'avgScoreMin' && $value !== 0) {
+                $where[] = $qb->expr()->gte('average_score', (string) $value);
+            }
+            // Maximum Average Score
+            if ($key === 'avgScoreMax' && $value !== 0) {
+                // The db doesn't consider null = 0 so we gotta include the null values
+                // If minimum episodes > 0 the null values will get filtered out again
+                $where[] = $qb->expr()->or(
+                    $qb->expr()->lte('average_score', (string) $value),
+                    $qb->expr()->isNull('average_score'),
+                );
+            }
             // Show Adult Content
             if ($key === 'showAdult' && $value === false) {
                 $where[] = $qb->expr()->eq('is_adult', '0');

@@ -51,6 +51,10 @@ final class Filter
         'deathdayUntil' => 'fuzzydate',
         'userStartFrom' => 'fuzzydate',
         'userFinishUntil' => 'fuzzydate',
+        'meanScoreMin' => 'int',
+        'meanScoreMax' => 'int',
+        'avgScoreMin' => 'int',
+        'avgScoreMax' => 'int',
     ];
 
     /** @var array<string, array<int, string>> */
