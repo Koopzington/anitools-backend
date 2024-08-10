@@ -35,10 +35,8 @@ final class Signature implements EndpointInterface
         $responseHeaders = $response->getHeaders();
         $queryParams = $request->getQueryParams();
 
-        $isLegacy = isset($queryParams['username']);
-
         // Check for both user_name and username (legacy)
-        if (! isset($queryParams['user_name']) && ! $isLegacy) {
+        if (! isset($queryParams['user_name']) && ! isset($queryParams['username'])) {
             return new Response(
                 Response::STATUS_BAD_REQUEST,
                 $responseHeaders,
@@ -53,7 +51,7 @@ final class Signature implements EndpointInterface
         return new Response(
             200,
             $responseHeaders,
-            $this->svgGenerator->generate($userName, $isLegacy),
+            $this->svgGenerator->generate($userName),
         );
     }
 }

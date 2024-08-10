@@ -34,7 +34,7 @@ final class SVGGenerator
         $this->log = $logger;
     }
 
-    public function generate(string $username, bool $isLegacy): string
+    public function generate(string $username): string
     {
         $svg = file_get_contents('data/awc-rank-base.svg');
 
