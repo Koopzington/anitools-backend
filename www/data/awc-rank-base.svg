@@ -21,7 +21,7 @@
         }
         
         .placement-3-d {
-            font: bold 40px sans-serif;
+            font: bold 33px sans-serif;
         }
         .placement-4-d {
             font: bold 30px sans-serif;
