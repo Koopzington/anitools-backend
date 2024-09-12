@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AniTools;
 
 use AniTools\Util\AniListClient;
+use AniTools\Util\RegEx;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\Expression\CompositeExpression;
 use Doctrine\DBAL\Query\QueryBuilder;
@@ -75,7 +76,7 @@ final class APIService
         'nameFirst' => 'name_first',
         'nameMiddle' => 'name_middle',
         'nameLast' => 'name_last',
-        'nameFull' => 'CONCAT_WS(\' \', name_first, name_middle, name_last)',
+        'nameFull' => 'name_full',
         'nameNative' => 'name_native',
         'gender' => 'gender',
         'dateOfBirth' => 'CONCAT_WS(\'-\', date_of_birth_y,'
@@ -434,33 +435,115 @@ final class APIService
 
             // Title
             if ($key === 'titleLike') {
-                // Lowercase the string, split it by spaces and make the query needing to match all parts
-                $value = strtolower($value);
-                $parts = explode(' ', $value);
-                $ands = ['eng' => [], 'rom' => [], 'nat' => []];
-                foreach ($parts as $part) {
-                    $ands['eng'][] = $qb->expr()->like('lower(title_english)', "'%$part%'");
-                    $ands['rom'][] = $qb->expr()->like('lower(title_romaji)', "'%$part%'");
-                    $ands['nat'][] = $qb->expr()->like('lower(title_native)', "'%$part%'");
+                if ($value['regex']) {
+                    try {
+                        $rx = new RegEx($value['value']);
+                    } catch (\Exception $e) {
+                        // TODO: Throw exception instead and let user know
+                        continue;
+                    }
+                    $pattern = $rx->postgresFormat;
+
+                    $where[] = $qb->expr()->or(
+                        "regexp_count(title_english, '$pattern') > 0",
+                        "regexp_count(title_romaji, '$pattern') > 0",
+                        "regexp_count(title_native, '$pattern') > 0",
+                    );
+                } else {
+                    // Lowercase the string, split it by spaces and make the query needing to match all parts
+                    $value = strtolower($value['value']);
+                    // Check for quotes in the value, meant for explicit terms that may not be split by spaces
+                    $quoteExp = explode('"', $value);
+                    $explicitTerms = [];
+                    $nonExplicitTerms = [];
+                    if (\count($quoteExp) > 1) {
+                        foreach ($quoteExp as $key => $part) {
+                            if ($key % 2 === 0) {
+                                $nonExplicitTerms[] = $part;
+                            } else {
+                                $explicitTerms[] = $part;
+                            }
+                        }
+
+                        $value = implode(' ', array_filter($nonExplicitTerms));
+                    }
+                    
+                    // Split by spaces
+                    $parts = explode(' ', $value);
+                    // Checks if only exlusion terms have been passed in which case the where clauses will make sure
+                    // that none of the titles may contain them.
+                    $onlyExclusion = ! array_filter($parts, function ($p) { return strpos($p, '-') !== 0; }) > 0;
+                    if ($onlyExclusion && \count($explicitTerms) === 0) {
+                        $ands = [];
+                        foreach ($parts as $part) {
+                            $part = substr($part, 1);
+                            $ands[] = $qb->expr()->notLike("lower(coalesce(title_english, ''))", "'%$part%'");
+                            $ands[] = $qb->expr()->notLike('lower(title_romaji)', "'%$part%'");
+                            $ands[] = $qb->expr()->notLike("lower(coalesce(title_native, ''))", "'%$part%'");
+                        }
+
+                        $where[] = $qb->expr()->and(...$ands);
+                    } else {
+                        $ands = ['eng' => [], 'rom' => [], 'nat' => []];
+                        foreach ($parts as $part) {
+                            // Check for - in front of the part indicating that the title should NOT include it
+                            if (strpos($part, '-') === 0 && $part !== '-') {
+                                $part = substr($part, 1);
+                                $ands['eng'][] = $qb->expr()->notLike("lower(coalesce(title_english, ''))", "'%$part%'");
+                                $ands['rom'][] = $qb->expr()->notLike('lower(title_romaji)', "'%$part%'");
+                                $ands['nat'][] = $qb->expr()->notLike("lower(coalesce(title_english, ''))", "'%$part%'");
+                            } else {
+                                $ands['eng'][] = $qb->expr()->like('lower(title_english)', "'%$part%'");
+                                $ands['rom'][] = $qb->expr()->like('lower(title_romaji)', "'%$part%'");
+                                $ands['nat'][] = $qb->expr()->like('lower(title_native)', "'%$part%'");
+                            }
+                        }
+
+                        // Add clauses for explicit terms that can't be exclusions
+                        foreach ($explicitTerms as $part) {
+                            $ands['eng'][] = $qb->expr()->like('lower(title_english)', "'%$part%'");
+                            $ands['rom'][] = $qb->expr()->like('lower(title_romaji)', "'%$part%'");
+                            $ands['nat'][] = $qb->expr()->like('lower(title_native)', "'%$part%'");
+                        }
+
+                        $where[] = $qb->expr()->or(
+                            $qb->expr()->and(...$ands['eng']),
+                            $qb->expr()->and(...$ands['rom']),
+                            $qb->expr()->and(...$ands['nat']),
+                        );
+                    }
                 }
-                $where[] = $qb->expr()->or(
-                    $qb->expr()->and(...$ands['eng']),
-                    $qb->expr()->and(...$ands['rom']),
-                    $qb->expr()->and(...$ands['nat']),
-                );
             }
 
             // Character/Staff name
             if ($key === 'nameLike') {
-                // Lowercase the string, split it by spaces and make the query needing to match all parts
-                $value = strtolower($value);
-                $parts = explode(' ', $value);
-                $ands = ['fir' => [], 'mid' => [], 'las' => [], 'nat' => []];
-                foreach ($parts as $part) {
-                    $and['fir'][] = $qb->expr()->like('lower(name_first)', "'%$part%'");
-                    $and['mid'][] = $qb->expr()->like('lower(name_middle)', "'%$part%'");
-                    $and['las'][] = $qb->expr()->like('lower(name_last)', "'%$part%'");
-                    $and['nat'][] = $qb->expr()->like('lower(name_native)', "'%$part%'");
+                if ($value['regex']) {
+                    try {
+                        $rx = new RegEx($value['value']);
+                    } catch (\Exception $e) {
+                        // TODO: Throw exception instead and let user know
+                        continue;
+                    }
+                    $pattern = $rx->postgresFormat;
+
+                    $where[] = $qb->expr()->or(
+                        "regexp_count(name_full, '$pattern') > 0",
+                        "regexp_count(name_native, '$pattern') > 0",
+                    );
+                } else {
+                    // Lowercase the string, split it by spaces and make the query needing to match all parts
+                    $value = strtolower($value['value']);
+                    $parts = explode(' ', $value);
+                    $ands = ['full' => [], 'native' => []];
+                    foreach ($parts as $part) {
+                        $ands['full'][] = $qb->expr()->like('lower(name_full)', "'%$part%'");
+                        $ands['native'][] = $qb->expr()->like('lower(name_native)', "'%$part%'");
+                    }
+
+                    $where[] = $qb->expr()->or(
+                        $qb->expr()->and(...$ands['full']),
+                        $qb->expr()->and(...$ands['native']),
+                    );
                 }
             }
 
