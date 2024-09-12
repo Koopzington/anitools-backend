@@ -277,7 +277,7 @@ final class MapperService
 
         // Get the staff for the AL entry
         $sel = $this->db->createQueryBuilder();
-        $sel->select("ms.media_id", "staff.name_last", "staff.name_first", "ms.\"role\"");
+        $sel->select("staff.id", "staff.name_last", "staff.name_first", "ms.\"role\"");
         $sel->from('staff');
         $sel->innerJoin('staff', 'media_staff', 'ms', 'staff.id = ms.staff_id');
         $sel->where($sel->expr()->eq('ms.media_id', (string) $result['al_entry']['id']));
