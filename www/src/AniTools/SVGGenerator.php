@@ -27,16 +27,18 @@ final class SVGGenerator
 
     private Connection $db;
     private Logger $log;
+    private string $baseSVG;
 
     public function __construct(Connection $db, Logger $logger)
     {
         $this->db = $db;
         $this->log = $logger;
+        $this->baseSVG = file_get_contents('data/awc-rank-base.svg');
     }
 
-    public function generate(string $username): string
+    public function generate(string $username, string $bgColor, ?string $textColor): string
     {
-        $svg = file_get_contents('data/awc-rank-base.svg');
+        $svg = $this->baseSVG;
 
         $sel = $this->db->createQueryBuilder();
         $sel->select(
@@ -49,7 +51,13 @@ final class SVGGenerator
         $result = $this->db->executeQuery((string) $sel, ['username' => $username]);
         if ($result->rowCount() === 1) {
             $row = $result->fetchAssociative();
-            $this->log->debug('Signature requested: ' . implode(' - ', [$username, $row['points'], $row['rank']]));
+            $this->log->debug('Signature requested: ' . implode(' - ', [
+                $username,
+                $row['points'],
+                $row['rank'],
+                $bgColor,
+                $textColor,
+            ]));
             $svg = str_replace('$username$', $username, $svg);
             $svg = str_replace('$placement$', (string) $row['place'], $svg);
             $digits = (string) strlen((string) $row['place']);
@@ -57,6 +65,8 @@ final class SVGGenerator
             $svg = str_replace('$rank$', $row['rank'], $svg);
             $svg = str_replace('$points$', (string) $row['points'], $svg);
             $svg = str_replace('$rankColor$', self::RANK_COLORS[$row['rank']], $svg);
+            $svg = str_replace('$bgColor$', $bgColor, $svg);
+            $svg = str_replace('$textColor$', $textColor, $svg);
             $svg = str_replace('$placementColor$', ($row['points'] >= 405 ? 'black' : 'white'), $svg);
         }
 

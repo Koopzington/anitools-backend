@@ -46,12 +46,23 @@ final class Signature implements EndpointInterface
 
         $userName = $queryParams['user_name'] ?? $queryParams['username'];
 
+        $bgColor = '#1e293a';
+        // If a bg color was passed, validate it and use that one instead
+        if (isset($queryParams['bg_color']) && preg_match('/^[\da-f]{6}$/', $queryParams['bg_color']) === 1) {
+            $bgColor = '#' . $queryParams['bg_color'];
+        }
+
+        $textColor = '#fff';
+        if (isset($queryParams['text_color']) && preg_match('/^[\da-f]{6}$/', $queryParams['text_color']) === 1) {
+            $textColor = '#' . $queryParams['text_color'];
+        }
+
         $responseHeaders['Content-Type'] = 'image/svg+xml';
 
         return new Response(
             200,
             $responseHeaders,
-            $this->svgGenerator->generate($userName),
+            $this->svgGenerator->generate($userName, $bgColor, $textColor),
         );
     }
 }
