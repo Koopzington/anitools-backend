@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AniTools\Scraper;
 
+use AniTools\MapperService;
 use AniTools\Util\MangaUpdatesClient;
 use GuzzleHttp\Exception\RequestException;
 use RuntimeException;
@@ -68,12 +69,13 @@ final class MangaUpdates implements ScraperInterface
     ];
 
     private ConsoleOutputInterface $output;
-    private ProgressBar $progressBar;
+    private ?ProgressBar $progressBar = null;
     // Contains the current progress of the scrape, will be used for canceling and resuming the task
     /** @var array<string, mixed> */
-    private array $progress;
+    private array $progress = [];
     /** @var array<int, array<string, mixed>> | array<int, int> */
-    private array $data;
+    private array $data = [];
+    private $debugData = [];
     private string $file;
 
     public function __construct(ConsoleOutputInterface $output)
@@ -83,7 +85,9 @@ final class MangaUpdates implements ScraperInterface
 
     public function cancel(): void
     {
-        $this->progressBar->finish();
+        if ($this->progressBar !== null) {
+            $this->progressBar->finish();
+        }
         $this->output->write(PHP_EOL);
         $this->output->writeln('Received SIGINT, saving progress...');
         $progress = $this->progress;
@@ -209,21 +213,28 @@ final class MangaUpdates implements ScraperInterface
         }
     }
 
-    private $debugData = [];
-
     /** @param MUSeriesSearchRequestVars $variables */
     private function iterate(int $pageSize, int $totalHits, array &$variables): void
     {
         $this->progressBar->start($totalHits);
 
         $page = $variables['page'];
+        $retryCount = 0;
 
         while ($page * $pageSize < $totalHits) {
             try {
                 $page = $variables['page'];
                 /** @var MangaUpdatesSeriesSearch */
                 $response = MangaUpdatesClient::request('series/search', $variables);
+                // Reset counter on successful request
+                $retryCount = 0;
             } catch (RequestException $e) {
+                // Sometimes the API randomly returns a Bad Gateway so wait for a bit and try again
+                if ($e->getResponse()->getStatusCode() === 502 && $retryCount <= 10) {
+                    sleep(10);
+                    ++$retryCount;
+                    continue;
+                }
                 $this->output->writeln('<error>Got an uncaught error!</error>');
                 $this->output->writeln('<error>' . $e->getRequest()->getBody() . '</error>');
                 $this->output->writeln('<error>' . $e->getResponse()->getBody() . '</error>');
@@ -300,24 +311,29 @@ final class MangaUpdates implements ScraperInterface
             $this->data = json_decode($content, true);
         }
 
-        // Contains all IDs that have a later timestamp than what our database reports,
-        // meaning the series got updated on MU
-        $toFetch = [];
-        // To reduce the total amount of queries we only request the data for entries
-        // that haven't completed scanlation yet
-        $unfinished = [];
-        foreach ($this->data as $id => $row) {
-            if ($row['scanlation_completed'] === false) {
-                $unfinished[$id] = $row;
+        // Load and merge AniTools\MapperService::MANUAL_MANGAUPDATES_IMPORTS_FILE into main file if it exists
+        if (file_exists(MapperService::MANUAL_MANGAUPDATES_IMPORTS_FILE)) {
+            $this->output->writeln('Found manual imports. Merging them into the main file.');
+            $content = file_get_contents(MapperService::MANUAL_MANGAUPDATES_IMPORTS_FILE);
+            if ($content === false) {
+                $this->output->writeln(
+                    'The file "' . MapperService::MANUAL_MANGAUPDATES_IMPORTS_FILE . '" exists but couldn\'t be read.'
+                );
+                return Command::FAILURE;
             }
+            $data = json_decode($content, true);
+            foreach ($data as $id => $d) {
+                $this->data[$id] = $d;
+            }
+            // Delete file when finished
+            unlink(MapperService::MANUAL_MANGAUPDATES_IMPORTS_FILE);
         }
+
+        // Contains all IDs that have a later timestamp than what our database reports,
+        // meaning the series got updated on MU or doesn't exist on our side yet
+        $toFetch = [];
         foreach ($metadata as $id => $lastUpdated) {
-            // Series that needs to be updated
-            if (array_key_exists($id, $unfinished) && $lastUpdated > $unfinished[$id]['last_updated']) {
-                $toFetch[] = $id;
-            }
-            // New series
-            if (! array_key_exists($id, $unfinished)) {
+            if ($lastUpdated > ($this->data[$id]['last_updated'] ?? 0)) {
                 $toFetch[] = $id;
             }
         }
@@ -336,20 +352,25 @@ final class MangaUpdates implements ScraperInterface
         $this->output->writeln('Scraping data for ' . $amount . ' series');
 
         $i = 0;
-        if ($progress !== null) {
+        if ($progress !== null && isset($progress['id'])) {
             $i = array_search($progress['id'], $toFetch);
         }
 
         $this->progressBar = new ProgressBar($this->output, $amount - $i);
         $this->progressBar->start();
 
-        for ($i; $i < $amount; ++$i) {
+        $retryCount = 0;
+
+        while ($i < $amount) {
             /** @var int */
             $id = $toFetch[$i];
             $this->progress['id'] = $id;
             try {
                 /** @var MangaUpdatesSeriesInfo */
                 $response = MangaUpdatesClient::request('series/' . $id);
+
+                // Reset counter after successful request
+                $retryCount = 0;
             } catch (RequestException $e) {
                 // Series got deleted
                 if ($e->getResponse()->getStatusCode() === 404) {
@@ -357,6 +378,12 @@ final class MangaUpdates implements ScraperInterface
                         unset($this->data[$id]);
                     }
                     $this->progressBar->advance();
+                    ++$i;
+                    continue;
+                } elseif ($e->getResponse()->getStatusCode() === 502 && $retryCount <= 10) {
+                    // Sometimes the API returns Bad Gateways so wait a bit and retry
+                    sleep(10);
+                    ++$retryCount;
                     continue;
                 } else {
                     $this->output->writeln('<error>Got an uncaught error!</error>');
@@ -391,6 +418,8 @@ final class MangaUpdates implements ScraperInterface
                 'publishers' => $response['publishers'],
                 'publications' => $response['publications'],
             ];
+
+            ++$i;
 
             $this->progressBar->advance();
         }
