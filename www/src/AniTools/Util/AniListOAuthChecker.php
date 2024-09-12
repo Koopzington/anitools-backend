@@ -35,9 +35,7 @@ final class AniListOAuthChecker
             throw new \UnexpectedValueException($result['errors'][0]['message']);
         }
 
-        $u = new User();
-        $u->id = $userId;
-        $u->userName = $result['data']['Viewer']['name'];
+        $u = new User($userId, $result['data']['Viewer']['name']);
 
         self::$verified[$userId] = $u;
 

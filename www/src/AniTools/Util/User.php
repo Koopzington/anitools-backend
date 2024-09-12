@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace AniTools\Util;
 
-final class User
+final readonly class User
 {
-    public int $id;
-    public string $userName;
+    public function __construct(
+        public int $id,
+        public string $userName,
+    ) {}
 }

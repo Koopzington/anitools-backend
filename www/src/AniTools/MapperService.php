@@ -73,9 +73,7 @@ final class MapperService
             }
         }
 
-        $u = new User();
-        $u->id = 0;
-        $u->userName = 'AniTools';
+        $u = new User(0, 'AniTools');
         foreach ($notFound as $alId) {
             $this->createMapping($alId, null, $u);
         }

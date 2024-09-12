@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AniTools;
 
+use AniTools\Util\User;
 use Cocur\Slugify\Slugify;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
@@ -318,6 +319,42 @@ final class DBService
             $this->log->debug($e->getQuery()->getSQL());
             throw $e;
         }
+    }
+
+    public function getUserById(int $id): User
+    {
+        $sel = $this->db->createQueryBuilder();
+        $sel->select($this->db->quoteIdentifier('user.id'), 'user_name');
+        $sel->from('"user"');
+        $sel->where($sel->expr()->eq('id', (string) $id));
+
+        $result = $sel->executeQuery();
+
+        if ($result->rowCount() === 0) {
+            throw new \UnexpectedValueException('User not found');
+        }
+
+        $result = $result->fetchAssociative();
+
+        return new User($result['id'], $result['user_name']);
+    }
+
+    public function getUserByName(string $userName): User
+    {
+        $sel = $this->db->createQueryBuilder();
+        $sel->select('id', 'user_name');
+        $sel->from('"user"');
+        $sel->where($sel->expr()->eq('user_name', $this->db->quote($userName)));
+
+        $result = $sel->executeQuery();
+
+        if ($result->rowCount() === 0) {
+            throw new \UnexpectedValueException('User not found');
+        }
+
+        $result = $result->fetchAssociative();
+
+        return new User($result['id'], $result['user_name']);
     }
 
     /**
