@@ -31,7 +31,7 @@ final class Filter
         'airingStart' => 'fuzzydate',
         'airingFinish' => 'fuzzydate',
         'season' => 'array_string',
-        'year' => 'array_int',
+        'year' => 'array_int_or_range',
         'mcCountMin' => 'int',
         'mcCountMax' => 'int',
         'voiceActor' => 'array_int',
@@ -119,6 +119,7 @@ final class Filter
                 'bool' => $values === 'true' || $values === true ? true : false,
                 'array' => $values,
                 'array_int' => $this->filterArray($filterType, 'int', $values),
+                'array_int_or_range' => $this->filterArray($filterType, 'int_or_range', $values),
                 'array_string' => $this->filterArray($filterType, 'string', $values),
                 'fuzzydate' => (string) $values,
             };
@@ -176,12 +177,31 @@ final class Filter
             foreach ($vs as $v) {
                 $filtered[$andOrNot][] = match ($type) {
                     'int' => (int) $v,
+                    'int_or_range' => $this->processSingleOrRangeValue('int', $v),
                     'string' => (string) $v,
                 };
             }
         }
 
         return $filtered;
+    }
+
+    /**
+     * @param 'int' | 'string' $type
+     */
+    private function processSingleOrRangeValue(string $type, string $value): string | int | IntRange
+    {
+        $exp = explode('-', $value);
+        if (\count($exp) === 1) {
+            return match ($type) {
+                'int' => (int) $value,
+                'string' => (string) $value,
+            };
+        }
+
+        return match ($type) {
+            'int' => new IntRange((int) $exp[0], (int) $exp[1])
+        };
     }
 
     /** 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AniTools;
 
 use AniTools\Util\AniListClient;
+use AniTools\Util\IntRange;
 use AniTools\Util\RegEx;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\Expression\CompositeExpression;
@@ -659,12 +660,21 @@ final class APIService
             }
 
             if ($key === 'year') {
+                $or = [];
+                foreach ($value['or'] as $v) {
                 // If the filters also include a season, filter by the season_year instead
+                    $c = 'start_date_y';
                 if (array_key_exists('season', $filters)) {
-                    $where[] = $qb->expr()->in('season_year', "'" . implode("','", $value['or']) . "'");
+                        $c = 'season_year';
+                    }
+
+                    if ($v instanceof IntRange) {
+                        $or[] = $c . " BETWEEN " . $v->min . " AND " . $v->max;
                 } else {
-                    $where[] = $qb->expr()->in('start_date_y', "'" . implode("','", $value['or']) . "'");
+                        $or[] = $qb->expr()->eq($c, (string) $v);
                 }
+                }
+                $where[] = $qb->expr()->or(...$or);
             }
 
             if ($key === 'mcCountMin' && $value !== 0) {
