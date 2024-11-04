@@ -70,6 +70,7 @@ final class APIService
         'repeat' => 'user_media.repeat',
         'started' => 'user_media.started_at',
         'completed' => 'user_media.completed_at',
+        'remaining' => '(episodes - user_media.progress)',
         'daysSpent' => '(user_media.completed_at - user_media.started_at) + 1',
         'score' => 'user_media.score',
         'notes' => 'user_media.notes',
