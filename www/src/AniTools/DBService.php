@@ -77,7 +77,12 @@ final class DBService
         $sel = $qb->select('id');
         $sel->from('"user"');
         $sel->where($qb->expr()->eq('lower("user".user_name)', "'" . strtolower($userName) . "'"));
-        $userId = $sel->fetchAssociative()['id'];
+
+        $result = $sel->executeQuery();
+        if ($result->rowCount() === 0) {
+            return [];
+        }
+        $userId = $result->fetchAssociative()['id'];
 
         $this->selectUserLists->setParameter('user_id', $userId);
         $this->selectUserLists->setParameter('media_type', $mediaType);

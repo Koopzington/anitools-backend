@@ -663,17 +663,17 @@ final class APIService
             if ($key === 'year') {
                 $or = [];
                 foreach ($value['or'] as $v) {
-                // If the filters also include a season, filter by the season_year instead
+                    // If the filters also include a season, filter by the season_year instead
                     $c = 'start_date_y';
-                if (array_key_exists('season', $filters)) {
+                    if (array_key_exists('season', $filters)) {
                         $c = 'season_year';
                     }
 
                     if ($v instanceof IntRange) {
                         $or[] = $c . " BETWEEN " . $v->min . " AND " . $v->max;
-                } else {
+                    } else {
                         $or[] = $qb->expr()->eq($c, (string) $v);
-                }
+                    }
                 }
                 $where[] = $qb->expr()->or(...$or);
             }
@@ -1052,26 +1052,57 @@ final class APIService
     }
 
     /** @return array<array<string, mixed>> | array<string, array<int, array<string, mixed>>> */
-    public function getUserLists(string $userName, string $mediaType): array
+    public function getUserLists(string $userName, string $mediaType, bool $withTimeout): array
     {
-        $response = AniListClient::request(self::USER_LIST_QUERY, ['userName' => $userName, 'mediaType' => $mediaType]);
+        $this->log->debug('Retrieving current MediaListCollection from AniList');
+        $tStart = microtime(true);
+        $response = AniListClient::request(
+            self::USER_LIST_QUERY,
+            [
+                'userName' => $userName,
+                'mediaType' => $mediaType
+            ],
+            null,
+            null,
+            $withTimeout
+        );
+        $this->log->debug('Request took:' . ((microtime(true) - $tStart) * 1000) . 'ms');
+        $errors = [];
+        $warnings = [];
 
-        if (array_key_exists('errors', $response)) {
-            $output = ['errors' => []];
-            foreach ($response['errors'] as $e) {
-                $output['errors'][] = [
-                    'source' => 'AniList',
-                    'message' => $e['message'],
-                ];
-            }
-
-            return $output;
+        if (isset($response['data']['MediaListCollection']) && $response['data']['MediaListCollection'] !== null) {
+            $this->dbService->importUser($response['data']['MediaListCollection'], $mediaType);
+        } else {
+            $warnings[] = [
+                'source' => 'AniList',
+                'message' => 'AniList API didn\'t return any data while trying to update lists',
+            ];
         }
 
-        $data = $response['data']['MediaListCollection'];
-        $this->dbService->importUser($data, $mediaType);
+        $lists = $this->dbService->getUserLists($userName, $mediaType);
 
-        return $this->dbService->getUserLists($userName, $mediaType);
+        $output = ['data' => $lists];
+
+        if (isset($response['warnings'])) {
+            $output['warnings'] = $response['warnings'];
+        }
+
+        if (isset($response['errors'])) {
+            $errors = $response['errors'];
+        }
+
+        if (\count($lists) === 0) {
+            $errors[] = [
+                'source' => 'AniTools',
+                'message' => 'Couldn\'t find any lists for specified user'
+            ];
+        }
+
+        if (\count($errors) > 0) {
+            $output['errors'] = $errors;
+        }
+
+        return $output;
     }
 
     /**

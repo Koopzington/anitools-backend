@@ -34,7 +34,7 @@ final class UserLists implements EndpointInterface
     {
         $queryParams = $request->getQueryParams();
 
-        if (! array_key_exists('user_name', $queryParams) || ! array_key_exists('media_type', $queryParams)) {
+        if (! isset($queryParams['user_name']) || ! isset($queryParams['media_type'])) {
             return new Response(
                 Response::STATUS_BAD_REQUEST,
                 $response->getHeaders(),
@@ -50,9 +50,18 @@ final class UserLists implements EndpointInterface
             );
         }
 
-        $result = $this->apiService->getUserLists($queryParams['user_name'], $queryParams['media_type']);
+        $withTimeout = true;
+        if (isset($queryParams['force_reload']) && $queryParams['force_reload'] === 'true') {
+            $withTimeout = false;
+        }
 
-        if (array_key_exists('errors', $result)) {
+        $result = $this->apiService->getUserLists(
+            $queryParams['user_name'],
+            $queryParams['media_type'],
+            $withTimeout
+        );
+
+        if (isset($result['errors'])) {
             return new Response(
                 Response::STATUS_BAD_REQUEST,
                 $response->getHeaders(),
