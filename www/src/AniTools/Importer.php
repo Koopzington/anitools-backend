@@ -425,6 +425,7 @@ final class Importer
 
         $data = json_decode(file_get_contents($file), true);
 
+        // Delete characters that no longer exist on AL
         $allCharacterIds = [];
         foreach ($data as $row) {
             $allCharacterIds[] = $row['id'];
@@ -456,6 +457,7 @@ final class Importer
                     'blood_type' => $row['bloodType'],
                     'favourites' => $row['favourites'],
                     'name_alternatives' => $row['name']['alternative'],
+                    'name_alternatives_spoiler' => $row['name']['alternativeSpoiler']
                 ];
             }
             $this->db->executeQuery(DBService::getBatchInsertFor('characters', $values, 'characters_pk', true));

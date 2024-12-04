@@ -146,6 +146,7 @@ final class AniList implements ScraperInterface
                 last
                 native
                 alternative
+                alternativeSpoiler
             }
             description
             image {
@@ -360,7 +361,7 @@ final class AniList implements ScraperInterface
     private const BATCH_MAP = [
         'anime' => 8,
         'manga' => 8,
-        'characters' => 17,
+        'characters' => 16,
         'staff' => 15,
         'activities' => 50,
     ];
