@@ -80,6 +80,8 @@ final class APIService
         'nameLast' => 'name_last',
         'nameFull' => 'name_full',
         'nameNative' => 'name_native',
+        'nameAlternatives' => 'name_alternatives',
+        'nameAlternativesSpoiler' => 'name_alternatives_spoiler',
         'gender' => 'gender',
         'dateOfBirth' => 'CONCAT_WS(\'-\', date_of_birth_y,'
             . ' LPAD(date_of_birth_m::VARCHAR, 2, \'0\'), LPAD(date_of_birth_d::VARCHAR, 2, \'0\'))',
@@ -682,22 +684,22 @@ final class APIService
             }
 
             if ($key === 'year') {
-                    // If the filters also include a season, filter by the season_year instead
-                    $c = 'start_date_y';
-                    if (array_key_exists('season', $filters)) {
-                        $c = 'season_year';
-                    }
+                // If the filters also include a season, filter by the season_year instead
+                $c = 'start_date_y';
+                if (array_key_exists('season', $filters)) {
+                    $c = 'season_year';
+                }
 
                 if (isset($value['or'])) {
                     $or = [];
                     foreach ($value['or'] as $v) {
-                    if ($v instanceof IntRange) {
-                        $or[] = $c . " BETWEEN " . $v->min . " AND " . $v->max;
-                    } else {
-                        $or[] = $qb->expr()->eq($c, (string) $v);
+                        if ($v instanceof IntRange) {
+                            $or[] = $c . " BETWEEN " . $v->min . " AND " . $v->max;
+                        } else {
+                            $or[] = $qb->expr()->eq($c, (string) $v);
+                        }
                     }
-                }
-                $where[] = $qb->expr()->or(...$or);
+                    $where[] = $qb->expr()->or(...$or);
                 }
 
                 if (isset($value['not'])) {
@@ -1222,6 +1224,8 @@ final class APIService
         // If the following columns are being queried, they need to get returned as subarrays
         $requireSubData = [
             'appearances',
+            'nameAlternatives',
+            'nameAlternativesSpoiler',
         ];
         $subDataNeeded = [];
         foreach ($columns as $c) {
@@ -1319,6 +1323,20 @@ final class APIService
             $results[$id]['rowNum'] = ++$rowNum;
         }
 
+        if (\count($subDataNeeded) > 0 && \count($ids) > 0) {
+            $tStart = microtime(true);
+            foreach ($subDataNeeded as $key) {
+                foreach ($results as $id => $r) {
+                    if (is_string($r[$key])) {
+                        $results[$id][$key] = json_decode($r[$key], true);
+                    } else {
+                        $results[$id][$key] = [];
+                    }
+                }
+            }
+            $timings[] = 'db-page-sub;dur=' . ((microtime(true) - $tStart) * 1000);
+        }
+
         // Spit out only the columns the user specified
         return [
             'total' => $totalAmount,
@@ -1346,6 +1364,7 @@ final class APIService
         // If the following columns are being queried, they need to get returned as subarrays
         $requireSubData = [
             'appearances',
+            'nameAlternatives',
         ];
         $subDataNeeded = [];
         foreach ($columns as $c) {
@@ -1436,6 +1455,20 @@ final class APIService
         foreach ($ids as $id) {
             $results[$id]['id'] = $id;
             $results[$id]['rowNum'] = ++$rowNum;
+        }
+
+        if (\count($subDataNeeded) > 0 && \count($ids) > 0) {
+            $tStart = microtime(true);
+            foreach ($subDataNeeded as $key) {
+                foreach ($results as $id => $r) {
+                    if (is_string($r[$key])) {
+                        $results[$id][$key] = json_decode($r[$key], true);
+                    } else {
+                        $results[$id][$key] = [];
+                    }
+                }
+            }
+            $timings[] = 'db-page-sub;dur=' . ((microtime(true) - $tStart) * 1000);
         }
 
         // Spit out only the columns the user specified
