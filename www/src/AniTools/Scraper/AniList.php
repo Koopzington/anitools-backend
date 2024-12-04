@@ -32,7 +32,7 @@ final class AniList implements ScraperInterface
 
     private const MEDIA_QUERY = '
     fragment data on Page {
-        media (type: $mediaType) {
+        media (type: $mediaType sort: ID) {
             id
             idMal
             title {
@@ -138,7 +138,7 @@ final class AniList implements ScraperInterface
 
     private const CHARACTER_QUERY = '
     fragment data on Page {
-        characters {
+        characters (sort: ID) {
             id
             name {
                 first
@@ -184,9 +184,9 @@ final class AniList implements ScraperInterface
             pageInfo {
                 hasNextPage
             }
-            characters (id_in: $ids) {
+            characters (id_in: $ids sort: ID) {
                 id
-                media (page: $page2) {
+                media (page: $page2 sort: ID) {
                     pageInfo {
                         hasNextPage
                     }
@@ -207,7 +207,7 @@ final class AniList implements ScraperInterface
 
     private const STAFF_QUERY = '
     fragment data on Page {
-        staff {
+        staff (sort: ID) {
             id
             name {
                 first
@@ -257,7 +257,7 @@ final class AniList implements ScraperInterface
             }
             staff (id_in: $ids) {
                 id
-                staffMedia (page: $page2) {
+                staffMedia (page: $page2 sort: ID) {
                     pageInfo {
                         hasNextPage
                     }
@@ -300,7 +300,7 @@ final class AniList implements ScraperInterface
             pageInfo {
                 hasNextPage
             }
-            threadComments (threadId: $thread) {
+            threadComments (threadId: $thread sort: ID) {
                 id
                 user {
                     name
@@ -690,6 +690,10 @@ final class AniList implements ScraperInterface
         $this->progressBar->setMessage('Requesting pages ' . $page . ' - ' . $until . '...');
 
         $response = AniListClient::request($query, $vars);
+        if (! isset($response['data'])) {
+            $this->output->writeln(json_encode($response['errors']));
+            die;
+        }
         $data = $response['data'];
 
         $key = $mediatype;
