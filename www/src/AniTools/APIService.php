@@ -230,6 +230,27 @@ final class APIService
         return $where;
     }
 
+    private function getDirectSubClausesFor(QueryBuilder $qb, string $field, array $values): array
+    {
+        $where = [];
+
+        if (array_key_exists('or', $values)) {
+            $where[] = $qb->expr()->in($field, array_map([$qb->expr(), 'literal'], $values['or']));
+        }
+
+        if (array_key_exists('and', $values)) {
+            foreach ($values['and'] as $v) {
+                $where[] = $qb->expr()->eq($field, $qb->expr()->literal((string) $v));
+            }
+        }
+
+        if (array_key_exists('not', $values)) {
+            $where[] = $qb->expr()->notIn($field, array_map([$qb->expr(), 'literal'], $values['not']));
+        }
+
+        return $where;
+    }
+
     /**
      * @param array<string, mixed[]> $values
      * @return array<string | CompositeExpression>
@@ -635,40 +656,41 @@ final class APIService
                 $where[] = $qb->expr()->gt('reviews', '0');
             }
             if ($key === 'format') {
-                $where[] = $qb->expr()->in('format', "'" . implode("','", $value['or']) . "'");
+                $where = array_merge($where, $this->getDirectSubClausesFor($qb, 'media.format', $value));
             }
             if ($key === 'source') {
-                $where[] = $qb->expr()->in('source', "'" . implode("','", $value['or']) . "'");
+                $where = array_merge($where, $this->getDirectSubClausesFor($qb, 'media.source', $value));
             }
             if ($key === 'country') {
-                $where[] = $qb->expr()->in('country_of_origin', "'" . implode("','", $value['or']) . "'");
+                $where = array_merge($where, $this->getDirectSubClausesFor($qb, 'media.country_of_origin', $value));
             }
 
             if ($key === 'airStatus') {
-                $where[] = $qb->expr()->in('media.status', "'" . implode("','", $value['or']) . "'");
+                $where = array_merge($where, $this->getDirectSubClausesFor($qb, 'media.status', $value));
             }
 
             if ($key === 'bloodType') {
-                $where[] = $qb->expr()->in('blood_type', "'" . implode("','", $value['or']) . "'");
+                $where = array_merge($where, $this->getDirectSubClausesFor($qb, 'blood_type', $value));
             }
 
             if ($key === 'gender') {
-                $where[] = $qb->expr()->in('gender', "'" . implode("','", $value['or']) . "'");
+                $where = array_merge($where, $this->getDirectSubClausesFor($qb, 'gender', $value));
             }
 
             if ($key === 'season') {
-                $where[] = $qb->expr()->in('season', "'" . implode("','", $value['or']) . "'");
+                $where = array_merge($where, $this->getDirectSubClausesFor($qb, 'season', $value));
             }
 
             if ($key === 'year') {
-                $or = [];
-                foreach ($value['or'] as $v) {
                     // If the filters also include a season, filter by the season_year instead
                     $c = 'start_date_y';
                     if (array_key_exists('season', $filters)) {
                         $c = 'season_year';
                     }
 
+                if (isset($value['or'])) {
+                    $or = [];
+                    foreach ($value['or'] as $v) {
                     if ($v instanceof IntRange) {
                         $or[] = $c . " BETWEEN " . $v->min . " AND " . $v->max;
                     } else {
@@ -676,6 +698,20 @@ final class APIService
                     }
                 }
                 $where[] = $qb->expr()->or(...$or);
+                }
+
+                if (isset($value['not'])) {
+                    $and = [];
+                    foreach ($value['not'] as $v) {
+                        if ($v instanceof IntRange) {
+                            $and[] = $c . " NOT BETWEEN " . $v->min . " AND " . $v->max;
+                        } else {
+                            $and[] = $qb->expr()->neq($c, (string) $v);
+                        }
+                    }
+
+                    $where[] = $qb->expr()->and(...$and);
+                }
             }
 
             if ($key === 'mcCountMin' && $value !== 0) {
