@@ -424,7 +424,7 @@ final class APIService
      * @param array<string, mixed> $filters
      * @return CompositeExpression[] | string[]
      */
-    public function getWhereClauses(array $filters, QueryBuilder $qb, ?string $userName): array
+    public function getWhereClauses(string $type, array $filters, QueryBuilder $qb, ?string $userName): array
     {
         $where = [];
 
@@ -438,13 +438,13 @@ final class APIService
 
         foreach ($filters as $key => $value) {
             if ($key === 'and') {
-                $subClauses = $this->getWhereClauses($value, $qb, $userName);
+                $subClauses = $this->getWhereClauses($type, $value, $qb, $userName);
                 if (\count($subClauses) > 0) {
                     $where[] = $qb->expr()->and(...$subClauses);
                 }
             }
             if ($key === 'or') {
-                $subClauses = $this->getWhereClauses($value, $qb, $userName);
+                $subClauses = $this->getWhereClauses($type, $value, $qb, $userName);
                 if (\count($subClauses) > 0) {
                     $where[] = $qb->expr()->or(...$subClauses);
                 }
@@ -456,6 +456,29 @@ final class APIService
 
             if (isset(self::FUZZYDATE_MAP[$key])) {
                 $where = array_merge($where, $this->getFuzzyDateClauses($key, $value, $qb, $userName));
+            }
+
+            // ID
+            if ($key === 'id') {
+                if (isset($value['and'])) {
+                    foreach ($value['and'] as $v) {
+                        $where[] = $qb->expr()->like($type . '.id::text', "'%" . $v . "%'");
+                    }
+                }
+
+                if (isset($value['or'])) {
+                    $tmp = [];
+                    foreach ($value['or'] as $v) {
+                        $tmp[] = $qb->expr()->like($type . '.id::text', "'%" . $v . "%'");
+                    }
+                    $where[] = $qb->expr()->or(...$tmp);
+                }
+
+                if (isset($value['not'])) {
+                    foreach ($value['not'] as $v) {
+                        $where[] = $qb->expr()->notLike($type . '.id::text', "'%" . $v . "%'");
+                    }
+                }
             }
 
             // Title
@@ -1248,7 +1271,7 @@ final class APIService
         $totalAmount = $totals['count'];
 
         // Now figure out the amount of filtered entries
-        $whereClauses = $this->getWhereClauses($filters, $sel, $userName);
+        $whereClauses = $this->getWhereClauses('characters', $filters, $sel, $userName);
 
         if (\count($whereClauses) > 0) {
             $totalSel->where(...$whereClauses);
@@ -1387,7 +1410,7 @@ final class APIService
         $totalAmount = $totals['count'];
 
         // Now figure out the amount of filtered entries
-        $whereClauses = $this->getWhereClauses($filters, $sel, $userName);
+        $whereClauses = $this->getWhereClauses('staff', $filters, $sel, $userName);
 
         if (\count($whereClauses) > 0) {
             $totalSel->where(...$whereClauses);
@@ -1552,7 +1575,7 @@ final class APIService
                 'userList' => $filters['and']['userList'],
             ];
 
-            $totalWhere = $this->getWhereClauses($totalWhere, $totalSel, $userName);
+            $totalWhere = $this->getWhereClauses('media', $totalWhere, $totalSel, $userName);
             $totalSel->where(...$totalWhere);
 
             $this->log->debug((string) $totalSel, ['username' => '(' . $userName . ') ']);
@@ -1572,7 +1595,7 @@ final class APIService
         }
 
         // Now figure out the amount of filtered entries
-        $whereClauses = array_merge($whereClauses, $this->getWhereClauses($filters, $sel, $userName));
+        $whereClauses = array_merge($whereClauses, $this->getWhereClauses('media', $filters, $sel, $userName));
 
         if (\count($whereClauses) > 0) {
             $totalSel->where(...$whereClauses);

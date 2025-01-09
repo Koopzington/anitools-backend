@@ -10,6 +10,7 @@ final class Filter
         'and' => 'array',
         'or' => 'array',
         'not' => 'array',
+        'id' => 'array_int',
         'genre' => 'array_string',
         'studio' => 'array_string',
         'producer' => 'array_string',
