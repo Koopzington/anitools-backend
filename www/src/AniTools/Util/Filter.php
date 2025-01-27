@@ -141,6 +141,27 @@ final class Filter
                 }
             }
 
+            // Escape single quotes on values
+            if ($dataType === 'string') {
+                $filteredValue = str_replace("'", "''", $filteredValue);
+            }
+            if ($dataType === 'string_or_regex') {
+                $filteredValue['value'] = str_replace("'", "''", $filteredValue['value']);
+            }
+            if ($dataType === 'array_string') {
+                foreach ($filteredValue as $andOrNot => $values) {
+                    if (! is_array($values)) {
+                        continue;
+                    }
+                    $filteredValue[$andOrNot] = array_map(
+                        function($v) {
+                            return str_replace("'", "''", $v);
+                        },
+                        $values
+                    );
+                }
+            }
+
             $this->filters[$filterType] = $filteredValue;
         }
     }
