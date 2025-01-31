@@ -383,7 +383,7 @@ final class DBService
         foreach ($values as $row) {
             $row = array_map(function ($v) {
                 if (is_array($v)) {
-                    return "'" . str_replace("'", "''", json_encode($v)) . "'";
+                    return "'" . str_replace("'", "''", json_encode($v, JSON_UNESCAPED_UNICODE)) . "'";
                 }
                 if (is_string($v)) {
                     // Escape any single quotes while quoting the value

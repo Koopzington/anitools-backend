@@ -862,13 +862,7 @@ final class Importer
                 continue;
             }
             $row['id'] = $id;
-            $row['titles'] = json_encode($row['titles'], JSON_UNESCAPED_UNICODE);
-            $row['genres'] = json_encode($row['genres'], JSON_UNESCAPED_UNICODE);
-            $row['categories'] = json_encode($row['categories'], JSON_UNESCAPED_UNICODE);
-            $row['authors'] = json_encode($row['authors'], JSON_UNESCAPED_UNICODE);
-            $row['publishers'] = json_encode($row['publishers'], JSON_UNESCAPED_UNICODE);
-            $row['publications'] = json_encode($row['publications'], JSON_UNESCAPED_UNICODE);
-            $row['last_updated'] = date('Y-m-d H:i:s', $row['last_updated']);
+                        $row['last_updated'] = date('Y-m-d H:i:s', $row['last_updated']);
             $forInserts[] = $row;
         }
 
