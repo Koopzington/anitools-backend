@@ -226,12 +226,12 @@ final class Importer
                     'title_romaji' => $media['title']['romaji'],
                     'title_english' => $media['title']['english'],
                     'description' => $media['description'],
-                    'season' => $media['season'],
-                    'season_year' => $media['seasonYear'],
+                    'season' => $media['season'] ?? null,
+                    'season_year' => $media['seasonYear'] ?? null,
                     'format' => $media['format'],
                     'country_of_origin' => $media['countryOfOrigin'],
                     'episodes' => $mediaType === 'anime' ? $media['episodes'] : $media['chapters'],
-                    'duration' => $media['duration'],
+                    'duration' => $media['duration'] ?? null,
                     'source' => $media['source'],
                     'average_score' => $media['averageScore'],
                     'mean_score' => $media['meanScore'],
@@ -239,7 +239,8 @@ final class Importer
                     'popularity' => $media['popularity'],
                     'status' => $media['status'],
                     'is_adult' => (int) $media['isAdult'],
-                    'volumes' => $media['volumes'],
+                    'is_licensed' => (int) $media['isLicensed'],
+                    'volumes' => $media['volumes'] ?? null,
                     'reviews' => $media['reviews']['pageInfo']['total'],
                     'start_date_y' => $media['startDate']['year'],
                     'start_date_m' => $media['startDate']['month'],
@@ -320,6 +321,7 @@ final class Importer
                     ];
                 }
 
+                if (isset($media['studios'])) {
                 // Collect studios/producers
                 $uStudios = [];
                 $uProducers = [];
@@ -351,6 +353,7 @@ final class Importer
                 }
                 $v['studios'] = $uStudios;
                 $v['producers'] = $uProducers;
+                }
 
                 $values[] = $v;
 

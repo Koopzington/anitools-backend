@@ -30,7 +30,7 @@ final class AniList implements ScraperInterface
         'media-tag-collection',
     ];
 
-    private const MEDIA_QUERY = '
+    private const ANIME_QUERY = '
     fragment data on Page {
         media (type: $mediaType sort: ID) {
             id
@@ -61,6 +61,7 @@ final class AniList implements ScraperInterface
             favourites
             status(version: 2)
             isAdult
+            isLicensed
             studios {
                 edges {
                     node {
@@ -69,6 +70,76 @@ final class AniList implements ScraperInterface
                     isMain
                 }
             }
+            stats {
+                statusDistribution {
+                    status
+                    amount
+                }
+            }
+            reviews {
+                pageInfo {
+                    total
+                }
+            }
+            startDate {
+                year
+                month
+                day
+            }
+            endDate {
+                year
+                month
+                day
+            }
+            coverImage {
+                large
+            }
+            externalLinks {
+                site
+            }
+            relations {
+                pageInfo {
+                    hasNextPage
+                }
+                edges {
+                    node {
+                        id
+                    }
+                    relationType (version: 2)
+                }
+            }
+            synonyms
+        }
+    }';
+
+    private const MANGA_QUERY = '
+    fragment data on Page {
+        media (type: $mediaType sort: ID) {
+            id
+            idMal
+            title {
+                native
+                romaji
+                english
+            }
+            description
+            format
+            countryOfOrigin
+            tags {
+                name
+                rank
+                isMediaSpoiler
+                isGeneralSpoiler
+            }
+            genres
+            source (version: 3)
+            averageScore
+            meanScore
+            popularity
+            favourites
+            status(version: 2)
+            isAdult
+            isLicensed
             stats {
                 statusDistribution {
                     status
@@ -343,8 +414,8 @@ final class AniList implements ScraperInterface
     }';
 
     private const QUERY_MAP = [
-        'anime' => self::MEDIA_QUERY,
-        'manga' => self::MEDIA_QUERY,
+        'anime' => self::ANIME_QUERY,
+        'manga' => self::MANGA_QUERY,
         'characters' => self::CHARACTER_QUERY,
         'staff' => self::STAFF_QUERY,
         'challenge' => self::CHALLENGE_THREAD_QUERY,
@@ -360,7 +431,7 @@ final class AniList implements ScraperInterface
     // Contains the maximum amounts of pages that can get requestes at once with the queries hitting maximum complexity
     private const BATCH_MAP = [
         'anime' => 8,
-        'manga' => 8,
+        'manga' => 9,
         'characters' => 16,
         'staff' => 15,
         'activities' => 50,
@@ -727,6 +798,7 @@ final class AniList implements ScraperInterface
         return end($response['data']);
     }
 
+    // TODO: implement batch requests
     private function fetchRelationalData(): void
     {
         $filename = 'data/import/data-' . $this->mediaType . '-relations.json';
