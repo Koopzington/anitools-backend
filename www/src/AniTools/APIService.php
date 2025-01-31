@@ -855,7 +855,10 @@ final class APIService
                     'mei',
                     'mei.service = \'MangaUpdates\' and cast(mei.external_id as bigint) = mangaupdates.id'
                 );
-                $where = array_merge($where, $this->getSubClausesFor($sub, 'publication_name', $value));
+                foreach ($value as $andOrNot => $v) {
+                    $value[$andOrNot] = array_map('strtolower', $v);
+                }
+                $where = array_merge($where, $this->getSubClausesFor($sub, 'lower(publication_name)', $value));
             }
 
             // User List
