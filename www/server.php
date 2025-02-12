@@ -25,6 +25,8 @@ use Monolog\Level;
 use Monolog\Logger;
 use React\Http\Message\Response;
 
+use function React\Async\async;
+
 include 'vendor/autoload.php';
 
 // Checking whether all required environment variables are set
@@ -90,7 +92,7 @@ foreach ($endpoints as $endpoint) {
 
 $logger->debug("Instantiating ReactPHP server");
 $server = new React\Http\HttpServer(
-    function (Psr\Http\Message\ServerRequestInterface $request) use ($router, $logger)
+    async(function (Psr\Http\Message\ServerRequestInterface $request) use ($router, $logger)
     {
         $responseHeaders = [
             'Content-Type' => 'application/json',
@@ -177,7 +179,7 @@ $server = new React\Http\HttpServer(
                 json_encode(['error' => 'An unknown error occured']),
             );
         }
-    }
+    })
 );
 $server->on('error', function (Throwable $e) use ($logger) {
     if ($e->getPrevious() !== null) {
