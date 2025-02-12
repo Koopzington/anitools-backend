@@ -1051,6 +1051,13 @@ final class APIService
                 $this->log->debug(((microtime(true) - $tStart) * 1000) . 'ms');
             }
 
+            $tStart = microtime(true);
+            $qb->select('MAX(popularity) AS value');
+            $this->log->debug((string) $qb);
+            $result = $qb->executeQuery()->fetchAssociative();
+            $filterValues['popularity'] = $result['value'];
+            $this->log->debug(((microtime(true) - $tStart) * 1000) . 'ms');
+
             // Get a list of amounts of main characters
             $tStart = microtime(true);
             $sub = $this->db->createQueryBuilder();
