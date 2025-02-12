@@ -800,6 +800,18 @@ final class APIService
                 );
             }
 
+            if ($key === 'relationToAWCCommunityList') {
+                $sub = $this->db->createQueryBuilder();
+                $sub->select('related_media_id');
+                $sub->from('media_relations');
+                $sub->innerJoin('media_relations', 'awc_community_lists', 'cl', 'media_relations.media_id = cl.media_id');
+
+                $where = array_merge(
+                    $where,
+                    $this->getSubClausesFor($sub, 'cl.community_list', $value)
+                );
+            }
+
             if ($key === 'onlyScanlated' && $value === true) {
                 $sub = $this->db->createQueryBuilder();
                 $sub->select('media_id');

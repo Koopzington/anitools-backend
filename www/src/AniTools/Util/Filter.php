@@ -39,6 +39,7 @@ final class Filter
         'staff' => 'array_int',
         'tag' => 'array_string',
         'awcCommunityList' => 'array_string',
+        'relationToAWCCommunityList' => 'array_string',
         'onlyScanlated' => 'bool',
         'muPublisher' => 'array_string',
         'muPublication' => 'array_string',
