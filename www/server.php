@@ -17,12 +17,9 @@ use AniTools\Endpoint\SearchStaff;
 use AniTools\Endpoint\Signature;
 use AniTools\Endpoint\UserLists;
 use AniTools\MapperService;
+use AniTools\Util\ServerLog;
 use Aura\Router\RouterContainer;
 use Meilisearch\Client;
-use Monolog\Formatter\LineFormatter;
-use Monolog\Handler\StreamHandler;
-use Monolog\Level;
-use Monolog\Logger;
 use React\Http\Message\Response;
 
 use function React\Async\async;
@@ -39,25 +36,9 @@ if (! (getenv('DB_USER') &&
     die;
 }
 
-$logger = new Logger('API');
-$formatter = new LineFormatter(
-    "%datetime% %context.username%%channel%.%level_name%: %message%\n",
-    'Y-m-d H:i:s',
-    true,
-    true
-);
-// Log to STDOUT for CLI
-$handler = new StreamHandler('php://stdout', Level::Debug);
-$handler->setFormatter($formatter);
-$logger->pushHandler($handler);
-// Also log to a file
-$handler = new StreamHandler('./data/logs/server.log', Level::Debug);
-$handler->setFormatter($formatter);
-$logger->pushHandler($handler);
-
+$logger = ServerLog::getInstance();
 $logger->debug("Getting DB connection");
 $conn = DBService::getDBConnection();
-
 $logger->debug("Instantiating DBService");
 $dbService = new AniTools\DBService($logger);
 $logger->debug("Instantiating Backend");
