@@ -1078,11 +1078,9 @@ final class APIService
             $this->log->debug(((microtime(true) - $tStart) * 1000) . 'ms');
 
             $tStart = microtime(true);
-            $clone = clone $qb;
-            $clone->select('DISTINCT(me.site) AS value');
-            $clone->innerJoin('media', 'media_external_links', 'me', 'media.id = me.media_id');
-            $this->log->debug((string) $clone);
-            $results = $clone->executeQuery()->fetchAllAssociative();
+            $query = 'SELECT DISTINCT jsonb_array_elements_text(media.external_links) AS value FROM media ORDER BY value ASC';
+            $this->log->debug($query);
+            $results = $this->db->executeQuery($query)->fetchAllAssociative();
             $filterValues['external_links'] = array_filter(array_map($f, $results));
             $this->log->debug(((microtime(true) - $tStart) * 1000) . 'ms');
 
