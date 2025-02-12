@@ -57,6 +57,8 @@ final class Filter
         'meanScoreMax' => 'int',
         'avgScoreMin' => 'int',
         'avgScoreMax' => 'int',
+        'popularityMin' => 'int',
+        'popularityMax' => 'int',
     ];
 
     /** @var array<string, array<int, string>> */

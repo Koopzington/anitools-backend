@@ -669,6 +669,19 @@ final class APIService
                     $qb->expr()->isNull('average_score'),
                 );
             }
+            // Minimum Popularity
+            if ($key === 'popularityMin' && $value !== 0) {
+                $where[] = $qb->expr()->gte('popularity', (string) $value);
+            }
+            // Maximum Popularity
+            if ($key === 'popularityMax' && $value !== 0) {
+                // The db doesn't consider null = 0 so we gotta include the null values
+                // If minimum episodes > 0 the null values will get filtered out again
+                $where[] = $qb->expr()->or(
+                    $qb->expr()->lte('popularity', (string) $value),
+                    $qb->expr()->isNull('popularity'),
+                );
+            }
             // Show Adult Content
             if ($key === 'showAdult' && $value === false) {
                 $where[] = $qb->expr()->eq('is_adult', '0');
