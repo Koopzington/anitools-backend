@@ -276,7 +276,6 @@ final class APIService
         if (array_key_exists('or', $values)) {
             $or = [];
             foreach ($values['or'] as $value) {
-                $value = str_replace("'", "''", $value);
                 if ($field === 'media.tags') {
                     $or[] = "jsonb_path_exists($field, '$[*] ? (@.tag == \"$value\" "
                     . "&& @.rank >= $tagPercentageMin && @.rank <= $tagPercentageMax)')";
@@ -289,7 +288,6 @@ final class APIService
 
         if (array_key_exists('and', $values)) {
             foreach ($values['and'] as $value) {
-                $value = str_replace("'", "''", $value);
                 if ($field === 'media.tags') {
                     $where[] = "jsonb_path_exists($field, '$[*] ? (@.tag == \"$value\" "
                     . "&& @.rank >= $tagPercentageMin && @.rank <= $tagPercentageMax)')";
@@ -301,7 +299,6 @@ final class APIService
 
         if (array_key_exists('not', $values)) {
             foreach ($values['not'] as $value) {
-                $value = str_replace("'", "''", $value);
                 $where[] = "NOT($field @@ '$accessor == \"$value\"')";
             }
         }
