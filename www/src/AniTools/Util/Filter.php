@@ -17,6 +17,7 @@ final class Filter
         'externalLink' => 'array_string',
         'titleLike' => 'string_or_regex',
         'notesLike' => 'string',
+        'descriptionLike' => 'string_or_regex',
         'episodesMin' => 'int',
         'episodesMax' => 'int',
         'volumesMin' => 'int',

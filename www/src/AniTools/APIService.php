@@ -604,6 +604,63 @@ final class APIService
                 $where[] = $qb->expr()->and(...$ands);
             }
 
+            // Description
+            if ($key === 'descriptionLike') {
+                if ($value['regex']) {
+                    try {
+                        $rx = new RegEx($value['value']);
+                    } catch (\Exception $e) {
+                        // TODO: Throw exception instead and let user know
+                        continue;
+                    }
+                    $pattern = $rx->postgresFormat;
+                    $where[] = "regexp_count(" . $type . ".description, '$pattern') > 0";
+                } else {
+                    // Lowercase the string, split it by spaces and make the query needing to match all parts
+                    $value = strtolower($value['value']);
+                    // Check for quotes in the value, meant for explicit terms that may not be split by spaces
+                    $quoteExp = explode('"', $value);
+                    $explicitTerms = [];
+                    $nonExplicitTerms = [];
+                    if (\count($quoteExp) > 1) {
+                        foreach ($quoteExp as $key => $part) {
+                            if ($key % 2 === 0) {
+                                $nonExplicitTerms[] = $part;
+                            } else {
+                                $explicitTerms[] = $part;
+                            }
+                        }
+
+                        $value = implode(' ', array_filter($nonExplicitTerms));
+                    }
+                    
+                    // Split by spaces
+                    $parts = explode(' ', $value);
+                    $ands = [];
+                    foreach ($parts as $part) {
+                        // Check for - in front of the part indicating that the title should NOT include it
+                        if (strpos($part, '-') === 0 && $part !== '-') {
+                            $part = substr($part, 1);
+                            $ands[] = $qb->expr()->notLike(
+                                "lower(coalesce(" . $type . ".description, ''))", "'%$part%'"
+                            );
+                        } else {
+                            $ands[] = $qb->expr()->like(
+                                "lower(coalesce(" . $type . ".description, ''))", "'%$part%'"
+                            );
+                        }
+                    }
+                    // Add clauses for explicit terms that can't be exclusions
+                    foreach ($explicitTerms as $part) {
+                        $ands[] = $qb->expr()->like(
+                            "lower(coalesce(" . $type . ".description, ''))", "'%$part%'"
+                        );
+                    }
+
+                    $where[] = $qb->expr()->and(...$ands);
+                }
+            }
+
             // Minimum episodes
             if ($key === 'episodesMin' && $value !== 0) {
                 $where[] = $qb->expr()->gte('episodes', (string) $value);
