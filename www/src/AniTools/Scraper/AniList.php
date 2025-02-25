@@ -230,6 +230,7 @@ final class AniList implements ScraperInterface
                 day
             }
             bloodType
+            age
             favourites
             media {
                 pageInfo {
@@ -305,6 +306,7 @@ final class AniList implements ScraperInterface
             yearsActive
             homeTown
             bloodType
+            primaryOccupations
             favourites
             staffMedia {
                 pageInfo {

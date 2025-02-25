@@ -454,6 +454,7 @@ final class Importer
                     'description' => $row['description'],
                     'image' => $row['image']['medium'],
                     'gender' => $row['gender'],
+                    'age' => $row['age'],
                     'date_of_birth_y' => $row['dateOfBirth']['year'],
                     'date_of_birth_m' => $row['dateOfBirth']['month'],
                     'date_of_birth_d' => $row['dateOfBirth']['day'],
@@ -548,6 +549,7 @@ final class Importer
                     'date_of_death_d' => $row['dateOfDeath']['day'],
                     'favourites' => $row['favourites'],
                     'name_alternatives' => $row['name']['alternative'],
+                    'primary_occupations' => $row['primaryOccupations'],
                 ];
             }
             $this->db->executeQuery(DBService::getBatchInsertFor('staff', $values, 'staff_pk', true));

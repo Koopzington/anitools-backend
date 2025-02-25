@@ -48,6 +48,7 @@ final class Filter
         'nameLike' => 'string_or_regex',
         'bloodType' => 'array_string',
         'gender' => 'array_string',
+        'primaryOccupation' => 'array_string',
         'birthdayFrom' => 'fuzzydate',
         'birthdayUntil' => 'fuzzydate',
         'deathdayFrom' => 'fuzzydate',

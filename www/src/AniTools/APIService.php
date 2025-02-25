@@ -89,6 +89,8 @@ final class APIService
             . ' LPAD(date_of_death_m::VARCHAR, 2, \'0\'), LPAD(date_of_death_d::VARCHAR, 2, \'0\'))',
         'bloodType' => 'blood_type',
         'homeTown' => 'home_town',
+        'primaryOccupations' => 'primary_occupations',
+        'age' => 'age',
         'yearsActiveFrom' => 'years_active_from',
         'yearsActiveUntil' => 'years_active_until',
         'appearances' => 'appearances.amount',
@@ -427,10 +429,11 @@ final class APIService
 
         // These columns only contain values which makes it fairly easy to filter
         $valueCols = [
-            'genre' => 'genres',
-            'studio' => 'studios',
-            'producer' => 'producers',
-            'externalLink' => 'external_links',
+            'genre' => 'media.genres',
+            'studio' => 'media.studios',
+            'producer' => 'media.producers',
+            'externalLink' => 'media.external_links',
+            'primaryOccupation' => 'staff.primary_occupations',
         ];
 
         foreach ($filters as $key => $value) {
@@ -448,7 +451,7 @@ final class APIService
             }
 
             if (isset($valueCols[$key])) {
-                $where = array_merge($where, $this->getJsonbSubClausesFor('media.' . $valueCols[$key], '$[*]', $value));
+                $where = array_merge($where, $this->getJsonbSubClausesFor($valueCols[$key], '$[*]', $value));
             }
 
             if (isset(self::FUZZYDATE_MAP[$key])) {
@@ -1192,6 +1195,15 @@ final class APIService
             $results = $clone->executeQuery()->fetchAllAssociative();
             $filterValues['gender'] = array_filter(array_map($f, $results));
             $this->log->debug(((microtime(true) - $tStart) * 1000) . 'ms');
+
+            if ($mediaType === 'STAFF') {
+                $tStart = microtime(true);
+                $query = 'SELECT DISTINCT jsonb_array_elements_text(primary_occupations) AS value FROM staff ORDER BY value ASC';
+                $this->log->debug($query);
+                $results = $this->db->executeQuery($query)->fetchAllAssociative();
+                $filterValues['primary_occupations'] = array_filter(array_map($f, $results));
+            $this->log->debug(((microtime(true) - $tStart) * 1000) . 'ms');
+            }
         }
 
         $this->filterValueCache[$mediaType] = $filterValues;
@@ -1473,6 +1485,7 @@ final class APIService
         $timings = [];
         // If the following columns are being queried, they need to get returned as subarrays
         $requireSubData = [
+            'primaryOccupations',
             'appearances',
             'nameAlternatives',
         ];
