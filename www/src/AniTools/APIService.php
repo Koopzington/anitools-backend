@@ -1867,9 +1867,13 @@ final class APIService
 
         switch ($filter) {
             case $filter === 'studio':
-                $qb->select('studio AS value');
-                $qb->from('media_studios');
-                $whereExp = "lower(studio) LIKE '%%%s%%'";
+            case $filter === 'producer':
+                $qb->select('tmp AS value');
+                $whereExp = "lower(tmp) LIKE '%%%s%%'";
+                $sub = $this->db->createQueryBuilder();
+                $sub->select('jsonb_array_elements_text(media.' . $filter . 's) AS tmp');
+                $sub->from('media');
+                $qb->from((string) '(' . $sub . ')');
                 break;
             case $filter === 'muPublication':
                 $qb->select("publication_name AS value");

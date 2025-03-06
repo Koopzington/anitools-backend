@@ -33,15 +33,7 @@ final class Importer
 
     // Arrays which will get filled while importing the media data and batch-inserted afterwards
     /** @var array<int, array<string, mixed>> */
-    private array $genres = [];
-    /** @var array<int, array<string, mixed>> */
-    private array $tags = [];
-    /** @var array<int, array<string, mixed>> */
-    private array $externalLinks = [];
-    /** @var array<int, array<string, mixed>> */
     private array $externalIds = [];
-    /** @var array<int, array<string, mixed>> */
-    private array $studios = [];
 
     private Logger $log;
 
@@ -66,11 +58,7 @@ final class Importer
 
     public function import(string $source): int
     {
-        $this->genres = [];
-        $this->tags = [];
-        $this->externalLinks = [];
         $this->externalIds = [];
-        $this->studios = [];
 
         return match ($source) {
             'anilist' => $this->importAniListData(),
@@ -113,17 +101,8 @@ final class Importer
         $this->importStaff();
         $this->output->writeln('Importing characters');
         $this->importCharacters();
-        $this->output->writeln('Importing media genres');
-        $this->importSubData($this->genres, 'media_genres');
-        $this->output->writeln('Importing media tags');
-        $this->importSubData($this->tags, 'media_tags');
-        $this->output->writeln('Importing media links');
-        $this->importSubData($this->externalLinks, 'media_external_links');
         $this->output->writeln('Importing MAL ids');
-        $this->db->executeQuery("DELETE FROM media_external_ids WHERE source = 'AniList'");
         $this->importSubData($this->externalIds, 'media_external_ids');
-        $this->output->writeln('Importing media studios');
-        $this->importSubData($this->studios, 'media_studios');
         $this->output->writeln('Importing anime relations');
         $this->importRelations('anime');
         $this->output->writeln('Importing manga relations');
@@ -263,14 +242,8 @@ final class Importer
                 // Collect genres
                 if (\count($media['genres']) !== \count($uGenres)) {
                     $this->log->debug(
-                        'Media id:' . $media['id'] . ' has duplicated genres. Consider making a data submission'
+                        $mediaType . ' id:' . $media['id'] . ' has duplicated genres. Consider making a data submission'
                     );
-                }
-                foreach ($uGenres as $g) {
-                    $this->genres[] = [
-                        'media_id' => $media['id'],
-                        'genre' => $g,
-                    ];
                 }
 
                 // Collect tags
@@ -279,7 +252,7 @@ final class Importer
                 foreach ($media['tags'] as $t) {
                     if (in_array($t['name'], $check)) {
                         $this->log->debug(
-                            'Media id:' . $media['id'] . ' has duplicated tags. Consider making a data submission'
+                            $mediaType . ' id:' . $media['id'] . ' has duplicated tags. Consider making a data submission'
                         );
                         continue;
                     }
@@ -292,7 +265,6 @@ final class Importer
                     ];
                     $uTags[] = $tag;
                     $tag['media_id'] = $media['id'];
-                    $this->tags[] = $tag;
                 }
                 $v['tags'] = $uTags;
 
@@ -302,13 +274,6 @@ final class Importer
                     $sites[] = $l['site'];
                 }
                 $sites = array_values(array_unique($sites));
-                // Collect external links
-                foreach ($sites as $s) {
-                    $this->externalLinks[] = [
-                        'media_id' => $media['id'],
-                        'site' => $s,
-                    ];
-                }
                 $v['external_links'] = $sites;
 
                 // Collect MAL IDs
@@ -326,30 +291,24 @@ final class Importer
                 $uStudios = [];
                 $uProducers = [];
                 foreach ($media['studios']['edges'] as $s) {
-                    if (in_array($s['node']['name'], $uStudios)) {
+                        if ($s['isMain'] === true && in_array($s['node']['name'], $uStudios)) {
                         $this->log->debug(
-                            'Media id:' . $media['id'] . ' has duplicated studios. Consider reporting this.'
+                                $mediaType . ' id:' . $media['id'] . ' has duplicated studios. Consider reporting this.'
                         );
                         continue;
                     }
-                    if (in_array($s['node']['name'], $uProducers)) {
+                        if ($s['isMain'] === false && in_array($s['node']['name'], $uProducers)) {
                         $this->log->debug(
-                            'Media id:' . $media['id'] . ' has duplicated producers. Consider reporting this.'
+                                $mediaType . ' id:' . $media['id'] . ' has duplicated producers. Consider reporting this.'
                         );
                         continue;
                     }
 
-                    if ((int) $s['isMain'] === 1) {
+                        if ($s['isMain'] === true) {
                         $uStudios[] = $s['node']['name'];
                     } else {
                         $uProducers[] = $s['node']['name'];
                     }
-
-                    $this->studios[] = [
-                        'media_id' => $media['id'],
-                        'studio' => $s['node']['name'],
-                        'is_main' => (int) $s['isMain'],
-                    ];
                 }
                 $v['studios'] = $uStudios;
                 $v['producers'] = $uProducers;
@@ -889,14 +848,14 @@ final class Importer
         $tables = [
             'awc_community_lists',
             'awc_requirement_specific_lists',
-            'media_genres',
-            'media_tags',
-            'media_external_links',
-            'media_studios',
             'media_relations',
             'media_characters',
             'media_staff',
         ];
         $this->db->executeQuery('TRUNCATE TABLE ' . implode(',', $tables) . ' CASCADE;');
+
+        // Since media_external_ids contains data from various sources we only delete the data that is imported
+        // through this class
+        $this->db->executeQuery("DELETE FROM media_external_ids WHERE source = 'AniList'");
     }
 }
