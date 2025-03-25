@@ -181,6 +181,13 @@ final class DBService
             $this->log->debug("Reimporting user " . $data['user']['name'] . " (ID: " . $data['user']['id'] . ")");
             // Update username if it changed
             if ($data['user']['name'] !== $result['user_name']) {
+                // Delete user that had the name before if it exists since they have been inactive for a long time
+                // anyways to have their name taken away
+                $this->db->delete(
+                    '"user"',
+                    ['user_name' => $data['user']['name']],
+                );
+                // Update user that has the name now
                 $this->db->update(
                     '"user"',
                     ['user_name' => $data['user']['name']],
