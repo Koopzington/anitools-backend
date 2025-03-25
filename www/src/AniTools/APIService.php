@@ -357,6 +357,20 @@ final class APIService
 
     private function getFuzzyDateClauses(string $filter, string $value, QueryBuilder $qb, ?string $userName) {
         $where = [];
+        $min = false;
+        $max = false;
+
+        if (strpos($filter, 'Min') !== false) {
+            $min = true;
+        }
+        if (strpos($filter, 'Max') !== false) {
+            $max = true;
+        }
+        // Cut the Min/Max off
+        if ($min === true || $max === true) {
+            $filter = substr($filter, 0, -3);
+        }
+
         $mapped = self::FUZZYDATE_MAP[$filter];
 
         if (isset($mapped['col'])) {
@@ -395,7 +409,11 @@ final class APIService
                 $t = $mapped['col'];
             }
 
-            if ($mapped['dir'] === '<') {
+            if ($min === true) {
+                $where[] = 'NOT(' . $qb->expr()->lte($t, "'$value'") . ')';
+            } elseif ($max === true) {
+                $where[] = 'NOT(' . $qb->expr()->gte($t, "'$value'") . ')';
+            } elseif ($mapped['dir'] === '<') {
                 $where[] = 'NOT(' . $qb->expr()->gte($t, "'$value'") . ')';
             } else {
                 $where[] = 'NOT(' . $qb->expr()->lte($t, "'$value'") . ')';
@@ -454,7 +472,14 @@ final class APIService
                 $where = array_merge($where, $this->getJsonbSubClausesFor($valueCols[$key], '$[*]', $value));
             }
 
-            if (isset(self::FUZZYDATE_MAP[$key])) {
+            // Supports airingStart, airingStartMin and airingStartMax
+            if (
+                isset(self::FUZZYDATE_MAP[$key])
+                || (
+                    (strpos($key, 'Min') !== false || strpos($key, 'Max') !== false)
+                    && isset(self::FUZZYDATE_MAP[substr($key, 0, -3)])
+                )
+            ) {
                 $where = array_merge($where, $this->getFuzzyDateClauses($key, $value, $qb, $userName));
             }
 
