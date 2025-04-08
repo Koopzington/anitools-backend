@@ -440,7 +440,10 @@ final class APIService
     }
 
     /**
+     * @param 'media' | 'staff' | 'characters' $type
      * @param array<string, mixed> $filters
+     * @param QueryBuilder $qb
+     * @param string|null $userName
      * @return CompositeExpression[] | string[]
      */
     public function getWhereClauses(string $type, array $filters, QueryBuilder $qb, ?string $userName): array
