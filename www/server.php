@@ -83,6 +83,10 @@ $server = new React\Http\HttpServer(
         ];
 
         $logger->debug("Received " . $request->getMethod() . " request for " . $request->getUri()->getPath());
+        $queryParams = $request->getQueryParams();
+        if (\count($queryParams) > 0) {
+            $logger->debug('Query params:' . json_encode($queryParams, JSON_PRETTY_PRINT));
+        }
 
         $route = $router->getMatcher()->match($request);
         if (! $route) {
