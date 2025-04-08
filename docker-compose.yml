@@ -14,6 +14,7 @@ services:
       - MEILI_MASTERKEY=${MEILI_MASTERKEY}
     depends_on:
       - postgres
+    restart: always
   cron:
     build:
       context: ./docker/php
@@ -31,6 +32,7 @@ services:
       - MEILI_MASTERKEY=${MEILI_MASTERKEY}
     depends_on:
       - postgres
+    restart: always
   postgres:
     image: postgres:16-alpine
     volumes:
@@ -40,6 +42,7 @@ services:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_DB=${DB_DATABASE}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
+    restart: always
   meilisearch:
     image: getmeili/meilisearch:v1.7
     restart: always
