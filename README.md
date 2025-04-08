@@ -52,7 +52,11 @@ It also provides very limited filtering options for a user's own list. In additi
             - Media must not be flagged as "adult"
 
 ## How to set this up?
-tl;dr:
+### Requirements
+- Bash
+- Docker
+- Docker Compose plugin
+
 ```
 $ git clone git@github.com:Koopzington/anitools-backend.git
 $ cd anitools-backend
@@ -60,12 +64,15 @@ $ ./generate-config.sh
 $ docker compose up -d
 ```
 
-the `generate-config.sh` creates an .env files with the environment variables that are being used inside the containers, namely `MYSQL_USER`, `MYSQL_DATABASE`, `MYSQL_PASSWORD` and `MYSQL_ROOT_PASSWORD`. Those are the database credentials that will be used for the creation of your db and the first three will also get told to the PHP containers so they know how to connect to the database.
+the `generate-config.sh` creates an .env files with the environment variables that are being used inside the containers, namely `MYSQL_USER`, `MYSQL_DATABASE`, `MYSQL_PASSWORD` and `MYSQL_ROOT_PASSWORD`. Those are the database credentials that will be used for the creation of your db and the first three will also get told to the PHP containers so they know how to connect to the database. Keep in mind that changing these variables after the creation of your database won't result in the database automatically updating it's credentials. You'll either have to do that manually or start with a completely new database by deleting the `postgres` folder (after shutting everything down with a `docker compose down` first).
 
 The scraping and importing of data is happening via command line:
 ```
 $ docker compose exec cron php cli.php app:scrape anilist all-media-data
 $ docker compose exec cron php cli.php app:import anilist
 ```
+### Cronjobs
+The scraping tasks are setup to automatically run on a weekly basis while the AWC leaderboard gets updated every 15 minutes.
+
 Since the AniList API has a 90 requests per minute ratelimit the scraping process does take quite a while to finish.
 
