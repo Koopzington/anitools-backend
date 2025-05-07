@@ -48,7 +48,7 @@ final class MangaDex implements ScraperInterface
 
     public function scrape(string $dataType): int
     {
-        if (! in_array($dataType, self::VALID_DATATYPES)) {
+        if (! in_array($dataType, self::VALID_DATATYPES, true)) {
             throw new \InvalidArgumentException("Datatype '$dataType' not supported for this scraper");
         }
 
@@ -149,10 +149,10 @@ final class MangaDex implements ScraperInterface
                 }
 
                 $m = [];
-                if ($alId) {
+                if ($alId !== null) {
                     $m['al'] = $alId;
                 }
-                if ($muId) {
+                if ($muId !== null) {
                     $m['mu'] = $muId;
                 }
                 if ($m !== []) {

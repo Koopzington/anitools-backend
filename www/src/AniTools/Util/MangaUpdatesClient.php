@@ -19,7 +19,7 @@ use Spatie\GuzzleRateLimiterMiddleware\RateLimiterMiddleware;
  *  perpage: int,
  *  orderby: string,
  *  year: int,
- *  type: string
+ *  type: array<int, string>
  * }
  */
 final class MangaUpdatesClient
@@ -29,10 +29,10 @@ final class MangaUpdatesClient
     private static Client $client;
 
     /**
-     * @param MUSeriesSearchRequestVars $variables
+     * @param MUSeriesSearchRequestVars | null $variables
      * @return array<string, mixed>
      * */
-    public static function request(string $url, array $variables = []): array
+    public static function request(string $url, array $variables = null): array
     {
         if (! isset(self::$client)) {
             // Only retry requests when the server responds with a 503 (Service Temporarily Unavailable)
@@ -67,7 +67,7 @@ final class MangaUpdatesClient
             ]);
         }
 
-        if ($variables !== []) {
+        if ($variables !== null) {
             $response = self::$client->post($url, ['json' => $variables]);
         } else {
             $response = self::$client->get($url);

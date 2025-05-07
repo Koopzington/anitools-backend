@@ -20,7 +20,7 @@ final readonly class RegEx
         // To keep our sanity, we require users to use delimiters in their patterns
         $delimiter = $input[0];
         // The only delimiters we accept
-        if (! in_array($delimiter, self::VALID_DELIMITERS)) {
+        if (! in_array($delimiter, self::VALID_DELIMITERS, true)) {
             throw new \InvalidArgumentException(
                 'The pattern needs to be wrapped in one of the following delimiters: '
                 . implode(', ', self::VALID_DELIMITERS)

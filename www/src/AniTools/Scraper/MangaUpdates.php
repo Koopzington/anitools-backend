@@ -28,6 +28,7 @@ use Symfony\Component\Console\Output\ConsoleOutputInterface;
  * }
  *
  * @phpstan-type MangaUpdatesSeriesInfo array{
+ *  series_id: int,
  *  title: string,
  *  associated: array<int, array{ title: string }>,
  *  last_updated: array{ timestamp: int },
@@ -75,7 +76,8 @@ final class MangaUpdates implements ScraperInterface
     private array $progress = [];
     /** @var array<int, array<string, mixed>> | array<int, int> */
     private array $data = [];
-    private $debugData = [];
+    /** @var array<int, array<string, mixed>> */
+    private array $debugData = [];
     private string $file;
 
     public function __construct(ConsoleOutputInterface $output)
@@ -100,12 +102,11 @@ final class MangaUpdates implements ScraperInterface
 
     public function scrape(string $dataType): int
     {
-        if (! in_array($dataType, self::VALID_DATATYPES)) {
+        if (! in_array($dataType, self::VALID_DATATYPES, true)) {
             throw new \InvalidArgumentException("Datatype '$dataType' not supported for this scraper");
         }
 
         try {
-            /** @phpstan-ignore-next-line */
             match ($dataType) {
                 'metadata' => $this->fetchMetadata(),
                 'series' => $this->fetchSeries(),
@@ -158,9 +159,7 @@ final class MangaUpdates implements ScraperInterface
             $variables['year'] = $progress['year'];
             $year = $progress['year'];
             $variables['page'] = $progress['page'];
-            if (array_key_exists('type', $variables)) {
-                $variables['type'] = $progress['type'];
-            }
+            $variables['type'] = $progress['type'];
         }
 
         ProgressBar::setFormatDefinition('custom', '%current%/%max% [%bar%] %percent:3s%% %message%');
@@ -178,7 +177,7 @@ final class MangaUpdates implements ScraperInterface
             $yearProgressBar->setMessage((string) $variables['year']);
 
             if (\count($variables['type']) === 1) {
-                $i = array_search($variables['type'][0], self::MANGA_TYPES);
+                $i = array_search($variables['type'][0], self::MANGA_TYPES, true);
                 for ($i; $i < \count(self::MANGA_TYPES); ++$i) {
                     $this->progressBar->setMessage(self::MANGA_TYPES[$i]);
                     // Filter down to a single type instead of all of them
@@ -353,7 +352,7 @@ final class MangaUpdates implements ScraperInterface
 
         $i = 0;
         if ($progress !== null && isset($progress['id'])) {
-            $i = array_search($progress['id'], $toFetch);
+            $i = array_search($progress['id'], $toFetch, true);
         }
 
         $this->progressBar = new ProgressBar($this->output, $amount - $i);

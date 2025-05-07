@@ -479,7 +479,7 @@ final class AniList implements ScraperInterface
 
     public function cancel(): void
     {
-        if ($this->progressBar !== null) {
+        if (isset($this->progressBar)) {
             $this->progressBar->finish();
         }
         $this->output->write(PHP_EOL);
@@ -579,7 +579,7 @@ final class AniList implements ScraperInterface
 
         $response = AniListClient::request(self::COMMUNITY_LIST_QUERY);
         foreach ($response['data']['MediaListCollection']['lists'] as $list) {
-            if (! $list['isCustomList']) {
+            if (! (bool) $list['isCustomList']) {
                 continue;
             }
             $data[$list['name']] = [];
@@ -629,7 +629,7 @@ final class AniList implements ScraperInterface
                         continue;
                     }
                     foreach ($comment['childComments'] as $reply) {
-                        if (! in_array($reply['user']['name'], ['AWCbotchan', 'TrapperHell'])) {
+                        if (! in_array($reply['user']['name'], ['AWCbotchan', 'TrapperHell'], true)) {
                             continue;
                         }
                         preg_match_all($pattern, $reply['comment'], $ids);
@@ -898,7 +898,7 @@ final class AniList implements ScraperInterface
     private function handleCharacterRelations(int $id, array $data): bool
     {
         foreach ($data['edges'] as $edge) {
-            if (! empty($edge['voiceActors'])) {
+            if (\count($edge['voiceActors']) > 0) {
                 // In case there's voice actors, one row per VA
                 foreach ($edge['voiceActors'] as $va) {
                     $this->relationalData[$id][] = [

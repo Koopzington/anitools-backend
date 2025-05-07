@@ -71,7 +71,7 @@ final class Animeshon implements ScraperInterface
 
     public function scrape(string $dataType): int
     {
-        if (! in_array($dataType, self::VALID_DATATYPES)) {
+        if (! in_array($dataType, self::VALID_DATATYPES, true)) {
             throw new InvalidArgumentException("Datatype '$dataType' not supported for this scraper");
         }
 

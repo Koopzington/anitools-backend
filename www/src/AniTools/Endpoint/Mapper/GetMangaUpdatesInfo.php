@@ -50,7 +50,7 @@ final class GetMangaUpdatesInfo implements EndpointInterface
 
         $postParams = json_decode((string) $request->getBody(), true);
 
-        if (! array_key_exists('input', $postParams) || empty($postParams['input'])) {
+        if (! array_key_exists('input', $postParams) || strlen(trim($postParams['input'])) === 0) {
             return new Response(
                 Response::STATUS_BAD_REQUEST,
                 $response->getHeaders(),

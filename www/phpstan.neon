@@ -1,0 +1,31 @@
+includes:
+    - vendor/phpstan/phpstan-deprecation-rules/rules.neon
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
+
+parameters:
+    level: 6
+    paths:
+        - src
+    tipsOfTheDay: false
+    strictRules:
+            # Commented out rules still need to be checked whether we want to use them or not
+            # allRules: false
+            # disallowedLooseComparison: false
+            booleansInConditions: true
+            booleansInLoopConditions: true
+            #uselessCast: false
+            #requireParentConstructorCall: false
+            #disallowedBacktick: false
+            #disallowedEmpty: false
+            #disallowedImplicitArrayCreation: false
+            #disallowedShortTernary: false
+            overwriteVariablesWithLoop: false
+            #closureUsesThis: false
+            #matchingInheritedMethodNames: false
+            #numericOperandsInArithmeticOperators: false
+            strictFunctionCalls: true
+            dynamicCallOnStaticMethod: true
+            #switchConditionsMatchingType: false
+            noVariableVariables: true
+            strictArrayFilter: false
+            #illegalConstructorMethodCall: false

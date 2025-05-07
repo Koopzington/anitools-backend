@@ -91,7 +91,7 @@ final class Scrape extends Command implements SignalableCommandInterface
             $dataType = $io->askQuestion($question);
             $io->writeln('Scraper ' . $dataType . ' selected.');
         }
-        if (! in_array($dataType, $this->scraper::VALID_DATATYPES)) {
+        if (! in_array($dataType, $this->scraper::VALID_DATATYPES, true)) {
             $io->writeln(
                 '<error>Invalid datatype provided. Valid types are: '
                 . implode(', ', $this->scraper::VALID_DATATYPES) . '</error>'

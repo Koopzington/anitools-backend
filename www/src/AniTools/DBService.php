@@ -15,6 +15,31 @@ use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use InvalidArgumentException;
 use Monolog\Logger;
 
+/** @phpstan-type ALUserMedia array{
+ *   media: array{
+ *     id: int
+ *   },
+ *   notes: string | null,
+ *   status: 'CURRENT' | 'PLANNING' | 'COMPLETED' | 'DROPPED' | 'PAUSED' | 'REPEATING',
+ *   progress: int | null,
+ *   progressVolumes: int | null,
+ *   score: int | float | null,
+ *   repeat: int,
+ *   startedAt: array{
+ *      year: int | null,
+ *      month: int | null,
+ *      day: int | null
+ *   },
+ *   completedAt: array{
+ *      year: int | null,
+ *      month: int | null,
+ *      day: int | null
+ *   },
+ *   hiddenFromStatusLists: bool,
+ *   createdAt: int,
+ *   updatedAt: int
+ * }
+ */
 final class DBService
 {
     private Connection $db;
@@ -249,6 +274,7 @@ final class DBService
             );
             $listId = $this->db->lastInsertId();
 
+            /** @var ALUserMedia $media */
             foreach ($list['entries'] as $media) {
                 $mediaListInsValues[] = [
                     'user_id' => $data['user']['id'],
@@ -268,7 +294,6 @@ final class DBService
                 if ($media['completedAt']['year'] === null) {
                     $completedAt = null;
                 }
-
                 $mediaInsValues[$media['media']['id']] = [
                     'user_id' => $data['user']['id'],
                     'media_id' => $media['media']['id'],
@@ -429,7 +454,7 @@ final class DBService
 
             $updCols = $cols;
             foreach (self::$schemaCache[$table] as $pkCol) {
-                if (($key = array_search($pkCol, $updCols)) !== false) {
+                if (($key = array_search($pkCol, $updCols, true)) !== false) {
                     unset($updCols[$key]);
                 }
             }

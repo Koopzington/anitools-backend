@@ -42,7 +42,7 @@ final class UserLists implements EndpointInterface
             );
         }
 
-        if (! in_array($queryParams['media_type'], ['ANIME', 'MANGA'])) {
+        if (! in_array($queryParams['media_type'], ['ANIME', 'MANGA'], true)) {
             return new Response(
                 Response::STATUS_BAD_REQUEST,
                 $response->getHeaders(),

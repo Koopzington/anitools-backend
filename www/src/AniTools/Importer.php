@@ -16,6 +16,73 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @phpstan-type ALMedia array{
+ *  id: int,
+ *  idMal: int | null,
+ *  title: array<'romaji' | 'english' | 'native', string>,
+ *  description: string,
+ *  season?: string,
+ *  seasonYear?: int,
+ *  format: string,
+ *  countryOfOrigin: string,
+ *  tags: array<int, array{
+ *    name: string,
+ *    rank: int,
+ *    isMediaSpoiler: bool,
+ *    isGeneralSpoiler: bool
+ *  }>,
+ *  genres: array<int, string>,
+ *  episodes?: int,
+ *  duration?: int,
+ *  chapters?: int,
+ *  volumes?: int,
+ *  source: string,
+ *  averageScore: int,
+ *  meanScore:int,
+ *  popularity: int,
+ *  favourites: int,
+ *  status: string,
+ *  isAdult: bool,
+ *  isLicensed: bool,
+ *  studios?: array{
+ *    edges: array<int, array{
+ *      node: array{
+ *        name: string
+ *      },
+ *      isMain: bool
+ *    }>
+ *  },
+ *  stats: array{
+ *    statusDistribution: array<int, array{
+ *      status: string,
+ *      amount: int
+ *    }>
+ *  },
+ *  reviews: array{
+ *    pageInfo: array{
+ *      total: int
+ *    }
+ *  },
+ *  startDate: array{
+ *    year: int | null,
+ *    month: int | null,
+ *    day: int | null
+ *  },
+ *  endDate: array{
+ *    year: int | null,
+ *    month: int | null,
+ *    day: int | null
+ *  },
+ *  coverImage: array{
+ *    large : string
+ *  },
+ *  externalLinks: array<int, array{
+ *    site: string
+ *  }>,
+ *  synonyms: array<int, string>
+ * }
+ */
 final class Importer
 {
     public const VALID_DATATYPES = [
@@ -143,31 +210,25 @@ final class Importer
         foreach ($chunks as $chunk) {
             $this->db->beginTransaction();
             $values = [];
+            /** @var ALMedia $media */
             foreach ($chunk as $media) {
                 $statsCurrent = 0;
                 $statsPlanning = 0;
                 $statsCompleted = 0;
                 $statsDropped = 0;
                 $statsPaused = 0;
-                if ($media['stats']['statusDistribution'] !== null) {
+
                     foreach ($media['stats']['statusDistribution'] as $s) {
-                        switch ($s['status']) {
-                            case $s['status'] === 'CURRENT':
+                    if ($s['status'] === 'CURRENT') {
                                 $statsCurrent = $s['amount'];
-                                break;
-                            case $s['status'] === 'PLANNING':
+                    } elseif($s['status'] === 'PLANNING') {
                                 $statsPlanning = $s['amount'];
-                                break;
-                            case $s['status'] === 'COMPLETED':
+                    } elseif ($s['status'] === 'COMPLETED') {
                                 $statsCompleted = $s['amount'];
-                                break;
-                            case $s['status'] === 'DROPPED':
+                    } elseif ($s['status'] === 'DROPPED') {
                                 $statsDropped = $s['amount'];
-                                break;
-                            case $s['status'] === 'PAUSED':
+                    } elseif ($s['status'] === 'PAUSED') {
                                 $statsPaused = $s['amount'];
-                                break;
-                        }
                     }
                 }
 
@@ -250,7 +311,7 @@ final class Importer
                 $check = [];
                 $uTags = [];
                 foreach ($media['tags'] as $t) {
-                    if (in_array($t['name'], $check)) {
+                    if (in_array($t['name'], $check, true)) {
                         $this->log->debug(
                             $mediaType . ' id:' . $media['id'] . ' has duplicated tags. Consider making a data submission'
                         );
@@ -291,13 +352,13 @@ final class Importer
                 $uStudios = [];
                 $uProducers = [];
                 foreach ($media['studios']['edges'] as $s) {
-                        if ($s['isMain'] === true && in_array($s['node']['name'], $uStudios)) {
+                        if ($s['isMain'] === true && in_array($s['node']['name'], $uStudios, true)) {
                         $this->log->debug(
                                 $mediaType . ' id:' . $media['id'] . ' has duplicated studios. Consider reporting this.'
                         );
                         continue;
                     }
-                        if ($s['isMain'] === false && in_array($s['node']['name'], $uProducers)) {
+                        if ($s['isMain'] === false && in_array($s['node']['name'], $uProducers, true)) {
                         $this->log->debug(
                                 $mediaType . ' id:' . $media['id'] . ' has duplicated producers. Consider reporting this.'
                         );
@@ -689,7 +750,7 @@ final class Importer
         foreach ($data as $muID => $crossrefs) {
             $muID = (int) $muID;
             // Skip MU IDs we don't have, likely dead links
-            if (! in_array($muID, $allMUIds)) {
+            if (! in_array($muID, $allMUIds, true)) {
                 continue;
             }
 
@@ -762,7 +823,7 @@ final class Importer
             }
 
             // Skip manga AL already deleted
-            if (! in_array($refs['al'], $allALIds)) {
+            if (! in_array($refs['al'], $allALIds, true)) {
                 //$this->output->writeln('The AL manga with id "' . $refs['al'] . '" no longer exists');
                 continue;
             }
@@ -819,7 +880,7 @@ final class Importer
         $forInserts = [];
         foreach ($data as $id => $row) {
             // Temporary workaround because the file contains non-allowed types in it
-            if (! in_array($row['type'], MangaUpdates::MANGA_TYPES)) {
+            if (! in_array($row['type'], MangaUpdates::MANGA_TYPES, true)) {
                 continue;
             }
             $row['id'] = $id;

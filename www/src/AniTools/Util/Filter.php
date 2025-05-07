@@ -126,7 +126,7 @@ final class Filter
                 throw new \InvalidArgumentException('Filter type "' . $filterType . '" is not supported');
             }
 
-            if (in_array($filterType, ['and', 'or', 'not'])) {
+            if (in_array($filterType, ['and', 'or', 'not'], true)) {
                 $this->filters[$filterType] = new Filter($filterValues, $values);
 
                 continue;
@@ -151,7 +151,7 @@ final class Filter
                 if (str_contains($dataType, 'array_')) {
                     $isValid = $this->validateArray($filterType, $filteredValue);
                 } else {
-                    $isValid = in_array($filteredValue, $this->filterEnums[$filterType]);
+                    $isValid = in_array($filteredValue, $this->filterEnums[$filterType], true);
                 }
                 if (! $isValid) {
                     throw new \InvalidArgumentException('Invalid values for filter type "' . $filterType . '"');
@@ -170,15 +170,15 @@ final class Filter
                 $filteredValue['value'] = str_replace("'", "''", $filteredValue['value']);
             }
             if ($dataType === 'array_string') {
-                foreach ($filteredValue as $andOrNot => $values) {
-                    if (! is_array($values)) {
+                foreach ($filteredValue as $andOrNot => $vals) {
+                    if (! is_array($vals)) {
                         continue;
                     }
                     $filteredValue[$andOrNot] = array_map(
                         function($v) {
                             return str_replace("'", "''", $v);
                         },
-                        $values
+                        $vals
                     );
                 }
             }
@@ -203,7 +203,7 @@ final class Filter
     }
 
     /**
-     * @param 'int' | 'string' $type
+     * @param 'int' | 'string' | 'int_or_range' $type
      * @param array<'and' | 'or' | 'not' | 'tagPercentageMin' | 'tagPercentageMax', array<int, int | string>> $values
      * @return array<'and' | 'or' | 'not' | 'tagPercentageMin' | 'tagPercentageMax', array<int, int | string>>
      */
@@ -220,7 +220,7 @@ final class Filter
             foreach ($vs as $v) {
                 $filtered[$andOrNot][] = match ($type) {
                     'int' => (int) $v,
-                    'int_or_range' => $this->processSingleOrRangeValue('int', $v),
+                    'int_or_range' => $this->processSingleOrRangeValue($v),
                     'string' => (string) $v,
                 };
             }
@@ -229,33 +229,26 @@ final class Filter
         return $filtered;
     }
 
-    /**
-     * @param 'int' | 'string' $type
-     */
-    private function processSingleOrRangeValue(string $type, string $value): string | int | IntRange
+    private function processSingleOrRangeValue(string $value): int | IntRange
     {
         $exp = explode('-', $value);
         if (\count($exp) === 1) {
-            return match ($type) {
-                'int' => (int) $value,
-                'string' => (string) $value,
-            };
+            return (int) $value;
         }
 
-        return match ($type) {
-            'int' => new IntRange((int) $exp[0], (int) $exp[1])
-        };
+        return new IntRange((int) $exp[0], (int) $exp[1]);
     }
 
     /** 
      * Checks whether the passed values are actually in the list of valid values
-     * @param array<'and' | 'or' | 'not' | 'tagPercentageMin' | 'tagPercentageMax', array<int, int | string>> $values
+     * @param array<'and' | 'or' | 'not' | 'tagPercentageMin' | 'tagPercentageMax', array<int, int | string> | int> $values
      * */
     private function validateArray(string $filterType, array $values): bool
     {
         foreach ($values as $groupName => $group) {
             if ($filterType === 'tag' && ($groupName === 'tagPercentageMin' || $groupName === 'tagPercentageMax')) {
                 // $group is actually a number from 1-100 here
+                /** @var int $group */
                 if ($group < 0 || $group > 100) {
                     return false;
                 }
@@ -263,7 +256,7 @@ final class Filter
                 continue;
             }
             foreach ($group as $v) {
-                if (! in_array($v, $this->filterEnums[$filterType])) {
+                if (! in_array($v, $this->filterEnums[$filterType], true)) {
                     return false;
                 }
             }

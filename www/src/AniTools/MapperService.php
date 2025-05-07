@@ -15,7 +15,7 @@ use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
 
 /**
- * @phpstan-import-type MangaUpdatesSeriesInfo from AniTools\Scraper\MangaUpdates
+ * @phpstan-import-type MangaUpdatesSeriesInfo from \AniTools\Scraper\MangaUpdates
  */
 final class MapperService
 {
@@ -152,8 +152,8 @@ final class MapperService
             throw new \InvalidArgumentException('Couldn\'t find any unmapped manga with the given filters');
         }
 
-        $randomEntry['genres'] = $randomEntry['genres'] ? json_decode($randomEntry['genres'], true) : [];
-        $randomEntry['tags'] = $randomEntry['tags'] ? json_decode($randomEntry['tags'], true) : [];
+        $randomEntry['genres'] = json_decode($randomEntry['genres'], true);
+        $randomEntry['tags'] = json_decode($randomEntry['tags'], true);
 
         // Search for existing votes (including votes for MU entries that Meili didn't list)
         $sel = $this->db->createQueryBuilder();
@@ -307,18 +307,12 @@ final class MapperService
                 $results[$id]['voted'] = $suggestion['voted'] ?? false;
                 $results[$id]['score'] = $suggestion['score'] ?? 0;
                 $results[$id]['voters'] = isset($suggestion['voters']) ? json_decode($suggestion['voters'], true) : [];
-                $results[$id]['titles'] = $results[$id]['titles'] ? json_decode($results[$id]['titles'], true) : [];
-                $results[$id]['genres'] = $results[$id]['genres'] ? json_decode($results[$id]['genres'], true) : [];
-                $results[$id]['categories'] = $results[$id]['categories']
-                    ? json_decode($results[$id]['categories'], true)
-                    : [];
-                $results[$id]['authors'] = $results[$id]['authors'] ? json_decode($results[$id]['authors'], true) : [];
-                $results[$id]['publishers'] = $results[$id]['publishers']
-                    ? json_decode($results[$id]['publishers'], true)
-                    : [];
-                $results[$id]['publications'] = $results[$id]['publications']
-                    ? json_decode($results[$id]['publications'], true)
-                    : [];
+                $results[$id]['titles'] = json_decode($results[$id]['titles'], true);
+                $results[$id]['genres'] = json_decode($results[$id]['genres'], true);
+                $results[$id]['categories'] = json_decode($results[$id]['categories'], true);
+                $results[$id]['authors'] = json_decode($results[$id]['authors'], true);
+                $results[$id]['publishers'] = json_decode($results[$id]['publishers'], true);
+                $results[$id]['publications'] = json_decode($results[$id]['publications'], true);
                 $suggestions[] = $results[$id];
             }
         }
@@ -532,7 +526,7 @@ final class MapperService
 
                 // Import into db
                 $ins = DBService::getBatchInsertFor('mangaupdates', [$data], 'mangaupdates_pk', true);
-                $this->log->debug((string) $ins);
+                $this->log->debug($ins);
                 $this->db->executeQuery($ins);
 
                 // Fetch again
@@ -553,19 +547,19 @@ final class MapperService
             }
         }
 
-        $result['titles'] = $result['titles'] ? json_decode($result['titles'], true) : [];
-        $result['genres'] = $result['genres'] ? json_decode($result['genres'], true) : [];
-        $result['categories'] = $result['categories'] ? json_decode($result['categories'], true) : [];
-        $result['authors'] = $result['authors'] ? json_decode($result['authors'], true) : [];
-        $result['publishers'] = $result['publishers'] ? json_decode($result['publishers'], true) : [];
-        $result['publications'] = $result['publications'] ? json_decode($result['publications'], true) : [];
+        $result['titles'] = json_decode($result['titles'], true);
+        $result['genres'] = json_decode($result['genres'], true);
+        $result['categories'] = json_decode($result['categories'], true);
+        $result['authors'] = json_decode($result['authors'], true);
+        $result['publishers'] = json_decode($result['publishers'], true);
+        $result['publications'] = json_decode($result['publications'], true);
 
         return $result;
     }
 
     /**
      * @param array<string, mixed> $filters
-     * @return array<string, int>
+     * @return array<string, mixed>
      */
     public function getStats(User $user, array $filters): array
     {

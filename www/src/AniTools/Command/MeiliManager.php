@@ -41,7 +41,7 @@ final class MeiliManager extends Command
     {
         $task = $input->getArgument('task');
 
-        if (! in_array($task, self::VALID_TASKS)) {
+        if (! in_array($task, self::VALID_TASKS, true)) {
             $output->writeln('Invalid task selected');
 
             return Command::FAILURE;
@@ -50,7 +50,6 @@ final class MeiliManager extends Command
         return match ($task) {
             'update-mu-index' => $this->updateMangaUpdatesIndex($output),
             'prefilter-unmappable-data' => $this->prefilterUnmappableData($output),
-            default => Command::FAILURE,
         };
     }
 
@@ -96,7 +95,7 @@ final class MeiliManager extends Command
         $forImport = [];
         foreach ($data as $id => $row) {
             // Temporary workaround because the file contains non-allowed types in it
-            if (! in_array($row['type'], MangaUpdates::MANGA_TYPES)) {
+            if (! in_array($row['type'], MangaUpdates::MANGA_TYPES, true)) {
                 continue;
             }
 

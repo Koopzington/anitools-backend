@@ -236,6 +236,10 @@ final class APIService
         return $where;
     }
 
+    /**
+     * @param array<'and' | 'or' | 'not', array<string, mixed>> $values
+     * @return CompositeExpression[] | string[]
+     */
     private function getDirectSubClausesFor(QueryBuilder $qb, string $field, array $values): array
     {
         $where = [];
@@ -357,7 +361,10 @@ final class APIService
         ],
     ];
 
-    private function getFuzzyDateClauses(string $filter, string $value, QueryBuilder $qb, ?string $userName) {
+    /**
+     * @return CompositeExpression[] | string[]
+     */
+    private function getFuzzyDateClauses(string $filter, string $value, QueryBuilder $qb, ?string $userName): array
         $where = [];
         $min = false;
         $max = false;
@@ -389,13 +396,13 @@ final class APIService
         if ($year === '*' || $month === '*' || $day === '*') {
             // Wildcards will turn the filter into pattern matching instead of a "greater than" filter
             if ($year !== '*') {
-                $where[] = $qb->expr()->eq($mapped['y'], (string) $year);
+                $where[] = $qb->expr()->eq($mapped['y'], $year);
             }
             if ($month !== '*') {
-                $where[] = $qb->expr()->eq($mapped['m'], (string) $month);
+                $where[] = $qb->expr()->eq($mapped['m'], $month);
             }
             if ($day !== '*') {
-                $where[] = $qb->expr()->eq($mapped['d'], (string) $day);
+                $where[] = $qb->expr()->eq($mapped['d'], $day);
             }
         } else {
             // Check if date is valid
@@ -513,7 +520,7 @@ final class APIService
 
             // Title
             if ($key === 'titleLike') {
-                if ($value['regex']) {
+                if ($value['regex'] === true) {
                     try {
                         $rx = new RegEx($value['value']);
                     } catch (\Exception $e) {
@@ -550,7 +557,9 @@ final class APIService
                     $parts = explode(' ', $value);
                     // Checks if only exlusion terms have been passed in which case the where clauses will make sure
                     // that none of the titles may contain them.
-                    $onlyExclusion = ! array_filter($parts, function ($p) { return strpos($p, '-') !== 0; }) > 0;
+                    $onlyExclusion = \count(
+                        array_filter($parts, function ($p) { return strpos($p, '-') !== 0; })
+                    ) === 0;
                     if ($onlyExclusion && \count($explicitTerms) === 0) {
                         $ands = [];
                         foreach ($parts as $part) {
@@ -595,7 +604,7 @@ final class APIService
 
             // Character/Staff name
             if ($key === 'nameLike') {
-                if ($value['regex']) {
+                if ($value['regex'] === true) {
                     try {
                         $rx = new RegEx($value['value']);
                     } catch (\Exception $e) {
@@ -639,7 +648,7 @@ final class APIService
 
             // Description
             if ($key === 'descriptionLike') {
-                if ($value['regex']) {
+                if ($value['regex'] === true) {
                     try {
                         $rx = new RegEx($value['value']);
                     } catch (\Exception $e) {
@@ -1016,7 +1025,11 @@ final class APIService
                             // It's either just "all" or "all-<status>"
                             if (
                                 \count($exp) === 2
-                                && in_array($exp[1], ['current','planning','completed','dropped','paused','repeating'])
+                                && in_array(
+                                    $exp[1],
+                                    ['current','planning','completed','dropped','paused','repeating'],
+                                    true
+                                )
                             ) {
                                 $s->andWhere($qb->expr()->eq('user_media.status', "'" . strtoupper($exp[1]) . "'"));
                             }
@@ -1061,7 +1074,7 @@ final class APIService
             $mediaType = 'MANGA';
         }
 
-        if (! in_array($mediaType, ['ANIME', 'MANGA', 'CHARACTER', 'STAFF'])) {
+        if (! in_array($mediaType, ['ANIME', 'MANGA', 'CHARACTER', 'STAFF'], true)) {
             return [];
         }
 
@@ -1073,7 +1086,7 @@ final class APIService
             return $i['value'];
         };
 
-        if (in_array($mediaType, ['ANIME', 'MANGA'])) {
+        if (in_array($mediaType, ['ANIME', 'MANGA'], true)) {
             $qb = $this->db->createQueryBuilder();
             $qb->from('media');
             $qb->where($qb->expr()->eq('media.media_type', "'" . $mediaType . "'"),);
@@ -1159,7 +1172,7 @@ final class APIService
             $sub->groupBy('media_id');
             $sel = $this->db->createQueryBuilder();
             $sel->select('DISTINCT value');
-            $sel->from((string) "($sub)", 'mccount');
+            $sel->from("($sub)", 'mccount');
             $sel->orderBy('value', 'asc');
             $this->log->debug((string) $sel);
             $results = $sel->executeQuery()->fetchAllAssociative();
@@ -1202,7 +1215,7 @@ final class APIService
             $results = $clone->executeQuery()->fetchAllAssociative();
             $filterValues['awc_community_lists'] = array_filter(array_map($f, $results));
             $this->log->debug(((microtime(true) - $tStart) * 1000) . 'ms');
-        } elseif (in_array($mediaType, ['CHARACTER', 'STAFF'])) {
+        } elseif (in_array($mediaType, ['CHARACTER', 'STAFF'], true)) {
             $table = match ($mediaType) {
                 'CHARACTER' => 'characters',
                 'STAFF' => 'staff',
@@ -1260,7 +1273,7 @@ final class APIService
         $errors = [];
         $warnings = [];
 
-        if (isset($response['data']['MediaListCollection']) && $response['data']['MediaListCollection'] !== null) {
+        if (isset($response['data']['MediaListCollection'])) {
             $this->dbService->importUser($response['data']['MediaListCollection'], $mediaType);
         } else {
             $warnings[] = [
@@ -1301,6 +1314,7 @@ final class APIService
      */
     private function mapColumns(string $mediaType, array $columns, ?string $userName): array
     {
+        $mapped = [];
         // We always need the ID (and the cover image because it isn't requested through a column)
         if ($mediaType === 'ANIME' || $mediaType === 'MANGA') {
             $mapped = [
@@ -1332,7 +1346,7 @@ final class APIService
             // The id column can't be empty because we group the results by the id in the query
             // The started and completed columns can't be empty because we need the data for the "Code" button
             if (
-                ! in_array($c['name'], ['id', 'started', 'completed']) && (
+                ! in_array($c['name'], ['id', 'started', 'completed'], true) && (
                     $c['visible'] === false || (
                         strpos(self::COLUMN_MAP[$c['name']], 'user_media') !== false &&
                         $userName === null
@@ -1381,7 +1395,7 @@ final class APIService
         ];
         $subDataNeeded = [];
         foreach ($columns as $c) {
-            if (in_array($c['name'], $requireSubData) && $c['visible'] === true) {
+            if (in_array($c['name'], $requireSubData, true) && $c['visible'] === true) {
                 $subDataNeeded[] = $c['name'];
             }
         }
@@ -1452,11 +1466,8 @@ final class APIService
                     $mapped = [$mapped];
                 }
 
-                // In case that a sorting requires involvement of multiple columns
-                if (is_array($mapped)) {
                     foreach ($mapped as $m) {
                         $sel->addOrderBy($m . ' ' . $criterium['dir'] . ' NULLS LAST');
-                    }
                 }
             }
         }
@@ -1521,7 +1532,7 @@ final class APIService
         ];
         $subDataNeeded = [];
         foreach ($columns as $c) {
-            if (in_array($c['name'], $requireSubData) && $c['visible'] === true) {
+            if (in_array($c['name'], $requireSubData, true) && $c['visible'] === true) {
                 $subDataNeeded[] = $c['name'];
             }
         }
@@ -1587,11 +1598,8 @@ final class APIService
                     $mapped = [$mapped];
                 }
 
-                // In case that a sorting requires involvement of multiple columns
-                if (is_array($mapped)) {
                     foreach ($mapped as $m) {
                         $sel->addOrderBy($m . ' ' . $criterium['dir'] . ' NULLS LAST');
-                    }
                 }
             }
         }
@@ -1660,7 +1668,7 @@ final class APIService
         ];
         $subDataNeeded = [];
         foreach ($columns as $c) {
-            if (in_array($c['name'], $requireSubData) && $c['visible'] === true) {
+            if (in_array($c['name'], $requireSubData, true) && $c['visible'] === true) {
                 $subDataNeeded[] = $c['name'];
             }
         }
@@ -1727,9 +1735,7 @@ final class APIService
         // Now figure out the amount of filtered entries
         $whereClauses = array_merge($whereClauses, $this->getWhereClauses('media', $filters, $sel, $userName));
 
-        if (\count($whereClauses) > 0) {
             $totalSel->where(...$whereClauses);
-        }
         $this->log->debug((string) $totalSel, ['username' => '(' . ($userName ?? 'Anonymous') . ') ']);
         $filteredTotals = $totalSel->executeQuery()->fetchAssociative();
 
@@ -1791,11 +1797,8 @@ final class APIService
                     $mapped = [$mapped];
                 }
 
-                // In case that a sorting requires involvement of multiple columns
-                if (is_array($mapped)) {
                     foreach ($mapped as $m) {
                         $sel->addOrderBy($m . ' ' . $criterium['dir'] . ' NULLS LAST');
-                    }
                 }
             }
         }
@@ -1861,7 +1864,7 @@ final class APIService
         $clauses = [];
         foreach ($exp as $part) {
             $clauses[] = is_numeric($part)
-                ? $qb->expr()->eq('staff.id', (string) $part)
+                ? $qb->expr()->eq('staff.id', $part)
                 : "lower("
                     . "coalesce(name_first, '') || ' ' || coalesce(name_middle, '') || ' ' || coalesce(name_last, '')"
                     . ") LIKE '%" . strtolower($part) . "%'";
@@ -1895,7 +1898,7 @@ final class APIService
         $qb->distinct();
         $qb->orderBy('value', 'asc');
 
-        switch ($filter) {
+        switch (true) {
             case $filter === 'studio':
             case $filter === 'producer':
                 $qb->select('tmp AS value');
@@ -1903,7 +1906,7 @@ final class APIService
                 $sub = $this->db->createQueryBuilder();
                 $sub->select('jsonb_array_elements_text(media.' . $filter . 's) AS tmp');
                 $sub->from('media');
-                $qb->from((string) '(' . $sub . ')');
+                $qb->from('(' . $sub . ')');
                 break;
             case $filter === 'muPublication':
                 $qb->select("publication_name AS value");
