@@ -23,7 +23,7 @@
         "doctrine/dbal": "^4.0",
         "cocur/slugify": "^4.5",
         "monolog/monolog": "^3.5",
-        "symfony/monolog-bridge": "^6.2",
+        "symfony/monolog-bridge": "^7.2",
         "meilisearch/meilisearch-php": "^1.2",
         "aura/router": "^3.3",
         "ramsey/uuid": "^4.7",
