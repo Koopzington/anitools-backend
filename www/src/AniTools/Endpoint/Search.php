@@ -6,6 +6,7 @@ namespace AniTools\Endpoint;
 
 use AniTools\APIService;
 use AniTools\Util\Filter;
+use AniTools\Util\MediaType;
 use Aura\Router\Route;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -13,13 +14,6 @@ use React\Http\Message\Response;
 
 final class Search implements EndpointInterface
 {
-    private const VALID_MEDIA_TYPES = [
-        'ANIME',
-        'MANGA',
-        'CHARACTER',
-        'STAFF',
-    ];
-
     private APIService $apiService;
 
     public function __construct(APIService $apiService)
@@ -46,11 +40,23 @@ final class Search implements EndpointInterface
             $params = json_decode((string) $request->getBody(), true);
         }
 
-        if (! isset($params['mediaType']) || ! in_array($params['mediaType'], self::VALID_MEDIA_TYPES)) {
+        
+        if (! isset($params['mediaType'])) {
             return new Response(
                 Response::STATUS_BAD_REQUEST,
                 $response->getHeaders(),
-                json_encode(['error' => 'Missing or invalid query parameters "mediaType"']),
+                json_encode(['error' => 'Missing query parameter "mediaType"']),
+            );
+        }
+
+        // Parse media type
+        try {
+            $mediaType = MediaType::fromString($params['mediaType']);
+        } catch (\Exception $e) {
+            return new Response(
+                Response::STATUS_BAD_REQUEST,
+                $response->getHeaders(),
+                json_encode(['error' => 'Invalid query parameter "mediaType"']),
             );
         }
 
@@ -58,7 +64,7 @@ final class Search implements EndpointInterface
             return new Response(
                 Response::STATUS_BAD_REQUEST,
                 $response->getHeaders(),
-                json_encode(['error' => 'Missing query parameters "columns"']),
+                json_encode(['error' => 'Missing query parameter "columns"']),
             );
         }
 
@@ -108,9 +114,9 @@ final class Search implements EndpointInterface
 
         $filteredValues = $filter->getValues();
 
-        $results = match ($params['mediaType']) {
-            'ANIME' => $this->apiService->searchForMedia(
-                $params['mediaType'],
+        $results = match ($mediaType) {
+            MediaType::ANIME, MediaType::MANGA => $this->apiService->searchForMedia(
+                $mediaType,
                 $filteredValues,
                 $columns,
                 $start,
@@ -118,8 +124,7 @@ final class Search implements EndpointInterface
                 $order,
                 $userName
             ),
-            'MANGA' => $this->apiService->searchForMedia(
-                $params['mediaType'],
+            MediaType::CHARACTER => $this->apiService->searchForCharacter(
                 $filteredValues,
                 $columns,
                 $start,
@@ -127,15 +132,7 @@ final class Search implements EndpointInterface
                 $order,
                 $userName
             ),
-            'CHARACTER' => $this->apiService->searchForCharacter(
-                $filteredValues,
-                $columns,
-                $start,
-                $length,
-                $order,
-                $userName
-            ),
-            'STAFF' => $this->apiService->searchForStaff(
+            MediaType::STAFF => $this->apiService->searchForStaff(
                 $filteredValues,
                 $columns,
                 $start,

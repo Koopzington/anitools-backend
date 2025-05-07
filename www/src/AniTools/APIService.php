@@ -6,6 +6,7 @@ namespace AniTools;
 
 use AniTools\Util\AniListClient;
 use AniTools\Util\IntRange;
+use AniTools\Util\MediaType;
 use AniTools\Util\RegEx;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\Expression\CompositeExpression;
@@ -152,9 +153,9 @@ final class APIService
     }
 
     /** @return array<string, int> */
-    public function getTotal(string $dataType): array
+    public function getTotal(MediaType $mediaType): array
     {
-        return $this->totals[$dataType];
+        return $this->totals[$mediaType->name];
     }
 
     private const USER_LIST_QUERY = '
@@ -1312,23 +1313,23 @@ final class APIService
      * @param list<array<string, mixed>> $columns
      * @return list<string>
      */
-    private function mapColumns(string $mediaType, array $columns, ?string $userName): array
+    private function mapColumns(MediaType $mediaType, array $columns, ?string $userName): array
     {
         $mapped = [];
         // We always need the ID (and the cover image because it isn't requested through a column)
-        if ($mediaType === 'ANIME' || $mediaType === 'MANGA') {
+        if ($mediaType === MediaType::ANIME || $mediaType === MediaType::MANGA) {
             $mapped = [
                 'media.id AS id',
                 'media.cover_image AS "coverImage"',
             ];
         }
-        if ($mediaType === 'CHARACTER') {
+        if ($mediaType === MediaType::CHARACTER) {
             $mapped = [
                 'characters.id AS id',
                 'characters.image AS "coverImage"',
             ];
         }
-        if ($mediaType === 'STAFF') {
+        if ($mediaType === MediaType::STAFF) {
             $mapped = [
                 'staff.id AS id',
                 'staff.image AS "coverImage"',
@@ -1357,10 +1358,10 @@ final class APIService
             } else {
                 if ($c['name'] === 'id') {
                     $mapped[] = match ($mediaType) {
-                        'ANIME' => 'media.id',
-                        'MANGA' => 'media.id',
-                        'CHARACTER' => 'characters.id',
-                        'STAFF' => 'staff.id',
+                        MediaType::ANIME => 'media.id',
+                        MediaType::MANGA => 'media.id',
+                        MediaType::CHARACTER => 'characters.id',
+                        MediaType::STAFF => 'staff.id',
                     } . ' AS ' . $this->db->quoteIdentifier($c['name']);
                 } else {
                     $mapped[] = self::COLUMN_MAP[$c['name']] . ' AS ' . $this->db->quoteIdentifier($c['name']);
@@ -1410,7 +1411,7 @@ final class APIService
         $sel->from('characters');
         $totalSel = clone $sel;
 
-        $totals = $this->getTotal('CHARACTER');
+        $totals = $this->getTotal(MediaType::CHARACTER);
         $totalAmount = $totals['count'];
 
         // Now figure out the amount of filtered entries
@@ -1425,7 +1426,7 @@ final class APIService
         $timings[] = 'db-total;dur=' . ((microtime(true) - $tStart) * 1000);
 
         $tStart = microtime(true);
-        $colMap = $this->mapColumns('CHARACTER', $columns, $userName);
+        $colMap = $this->mapColumns(MediaType::CHARACTER, $columns, $userName);
         $sel->select(...$colMap);
         if (\count($whereClauses) > 0) {
             $sel->where(...$whereClauses);
@@ -1547,7 +1548,7 @@ final class APIService
         $sel->from('staff');
         $totalSel = clone $sel;
 
-        $totals = $this->getTotal('STAFF');
+        $totals = $this->getTotal(MediaType::STAFF);
         $totalAmount = $totals['count'];
 
         // Now figure out the amount of filtered entries
@@ -1562,7 +1563,7 @@ final class APIService
         $timings[] = 'db-total;dur=' . ((microtime(true) - $tStart) * 1000);
 
         $tStart = microtime(true);
-        $colMap = $this->mapColumns('STAFF', $columns, $userName);
+        $colMap = $this->mapColumns(MediaType::STAFF, $columns, $userName);
         $sel->select(...$colMap);
         if (\count($whereClauses) > 0) {
             $sel->where(...$whereClauses);
@@ -1648,7 +1649,7 @@ final class APIService
      * @return array<string, mixed>
      */
     public function searchForMedia(
-        string $mediaType,
+        MediaType $mediaType,
         array $filters,
         array $columns,
         int $start,
@@ -1697,7 +1698,7 @@ final class APIService
         }
 
         $whereClauses = [
-            $sel->expr()->eq('media.media_type', "'" . $mediaType . "'"),
+            $sel->expr()->eq('media.media_type', "'" . $mediaType->name . "'"),
         ];
 
         // We need to make some adjustments for determining the "total entries" in case user lists are involved
