@@ -36,11 +36,11 @@ final class Search implements EndpointInterface
     {
         if ($request->getMethod() === 'GET') {
             $params = $request->getQueryParams();
-        } else if ($request->getMethod() === 'POST') {
+        } elseif ($request->getMethod() === 'POST') {
             $params = json_decode((string) $request->getBody(), true);
         }
 
-        
+
         if (! isset($params['mediaType'])) {
             return new Response(
                 Response::STATUS_BAD_REQUEST,

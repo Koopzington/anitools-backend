@@ -175,7 +175,7 @@ final class Filter
                         continue;
                     }
                     $filteredValue[$andOrNot] = array_map(
-                        function($v) {
+                        function ($v) {
                             return str_replace("'", "''", $v);
                         },
                         $vals
@@ -239,9 +239,9 @@ final class Filter
         return new IntRange((int) $exp[0], (int) $exp[1]);
     }
 
-    /** 
+    /**
      * Checks whether the passed values are actually in the list of valid values
-     * @param array<'and' | 'or' | 'not' | 'tagPercentageMin' | 'tagPercentageMax', array<int, int | string> | int> $values
+     * @param array<'and' | 'or' | 'not' | 'tagPercentageMin' | 'tagPercentageMax', string[] | int[] | int> $values
      * */
     private function validateArray(string $filterType, array $values): bool
     {

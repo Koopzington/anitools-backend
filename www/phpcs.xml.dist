@@ -20,7 +20,6 @@
             <property name="ignoreNewlines" value="true" />
         </properties>
     </rule>
-    <!-- Variablen und Klassen müssen korrektes Casing verwenden  -->
     <rule ref="Squiz.NamingConventions.ValidVariableName"/>
     <rule ref="Squiz.NamingConventions.ValidVariableName.PrivateNoUnderscore">
         <severity>0</severity>
@@ -53,4 +52,6 @@
     </rule>
     <!-- Paths to check -->
     <file>src</file>
+    <file>server.php</file>
+    <file>cli.php</file>
 </ruleset>

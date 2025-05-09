@@ -24,10 +24,11 @@ final class AniListClient
     private static Client $client;
     private static Client $timeoutClient;
 
-    private static function createClient (bool $withTimeout) {
+    private static function createClient(bool $withTimeout): void
+    {
         // Only retry requests when the server responds with a 429 (Too many requests)
         $decider = function (
-            int $retries, 
+            int $retries,
             RequestInterface $request,
             ResponseInterface $response = null
         ) use ($withTimeout): bool {
@@ -41,7 +42,8 @@ final class AniListClient
                 );
             }
             // In case we got rate-limited and the time to wait is longer than the threshold we skip retrying
-            if ($withTimeout === true 
+            if (
+                $withTimeout === true
                 && $response->getStatusCode() === 429
                 && $response->hasHeader('Retry-After')
             ) {
@@ -148,11 +150,13 @@ final class AniListClient
             $output = ['errors' => []];
             if ($e instanceof APITimeoutException) {
                 return [
-                    'warnings' => [[
-                        'source' => 'AniTools',
-                        'type' => 'timeout',
-                        'message' => $e->getMessage(),
-                    ]],
+                    'warnings' => [
+                        [
+                            'source' => 'AniTools',
+                            'type' => 'timeout',
+                            'message' => $e->getMessage(),
+                        ],
+                    ],
                 ];
             } else {
                 foreach ($response['errors'] as $e) {
@@ -166,10 +170,12 @@ final class AniListClient
             return $output;
         } catch (TransferException $e) {
             return [
-                'warnings' => [[
-                    'source' => 'AniTools',
-                    'message' => 'AniList API didn\'t respond within 5 seconds.'
-                ]],
+                'warnings' => [
+                    [
+                        'source' => 'AniTools',
+                        'message' => 'AniList API didn\'t respond within 5 seconds.',
+                    ],
+                ],
             ];
         }
 

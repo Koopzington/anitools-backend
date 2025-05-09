@@ -221,7 +221,7 @@ final class Importer
                     foreach ($media['stats']['statusDistribution'] as $s) {
                     if ($s['status'] === 'CURRENT') {
                                 $statsCurrent = $s['amount'];
-                    } elseif($s['status'] === 'PLANNING') {
+                    } elseif ($s['status'] === 'PLANNING') {
                                 $statsPlanning = $s['amount'];
                     } elseif ($s['status'] === 'COMPLETED') {
                                 $statsCompleted = $s['amount'];
@@ -303,7 +303,8 @@ final class Importer
                 // Collect genres
                 if (\count($media['genres']) !== \count($uGenres)) {
                     $this->log->debug(
-                        $mediaType . ' id:' . $media['id'] . ' has duplicated genres. Consider making a data submission'
+                        $mediaType . ' id:' . $media['id']
+                            . ' has duplicated genres. Consider making a data submission'
                     );
                 }
 
@@ -313,7 +314,8 @@ final class Importer
                 foreach ($media['tags'] as $t) {
                     if (in_array($t['name'], $check, true)) {
                         $this->log->debug(
-                            $mediaType . ' id:' . $media['id'] . ' has duplicated tags. Consider making a data submission'
+                            $mediaType . ' id:' . $media['id']
+                                . ' has duplicated tags. Consider making a data submission'
                         );
                         continue;
                     }
@@ -354,13 +356,15 @@ final class Importer
                 foreach ($media['studios']['edges'] as $s) {
                         if ($s['isMain'] === true && in_array($s['node']['name'], $uStudios, true)) {
                         $this->log->debug(
-                                $mediaType . ' id:' . $media['id'] . ' has duplicated studios. Consider reporting this.'
+                                $mediaType . ' id:' . $media['id']
+                                    . ' has duplicated studios. Consider reporting this.'
                         );
                         continue;
                     }
                         if ($s['isMain'] === false && in_array($s['node']['name'], $uProducers, true)) {
                         $this->log->debug(
-                                $mediaType . ' id:' . $media['id'] . ' has duplicated producers. Consider reporting this.'
+                                $mediaType . ' id:' . $media['id']
+                                    . ' has duplicated producers. Consider reporting this.'
                         );
                         continue;
                     }

@@ -315,7 +315,7 @@ final class APIService
         return $where;
     }
 
-    const FUZZYDATE_MAP = [
+    private const FUZZYDATE_MAP = [
         'airingStart' => [
             'dir' => '>',
             'y' => 'start_date_y',
@@ -366,6 +366,7 @@ final class APIService
      * @return CompositeExpression[] | string[]
      */
     private function getFuzzyDateClauses(string $filter, string $value, QueryBuilder $qb, ?string $userName): array
+    {
         $where = [];
         $min = false;
         $max = false;
@@ -559,7 +560,9 @@ final class APIService
                     // Checks if only exlusion terms have been passed in which case the where clauses will make sure
                     // that none of the titles may contain them.
                     $onlyExclusion = \count(
-                        array_filter($parts, function ($p) { return strpos($p, '-') !== 0; })
+                        array_filter($parts, function ($p) {
+                            return strpos($p, '-') !== 0;
+                        })
                     ) === 0;
                     if ($onlyExclusion && \count($explicitTerms) === 0) {
                         $ands = [];
@@ -577,9 +580,15 @@ final class APIService
                             // Check for - in front of the part indicating that the title should NOT include it
                             if (strpos($part, '-') === 0 && $part !== '-') {
                                 $part = substr($part, 1);
-                                $ands['eng'][] = $qb->expr()->notLike("lower(coalesce(title_english, ''))", "'%$part%'");
+                                $ands['eng'][] = $qb->expr()->notLike(
+                                    "lower(coalesce(title_english, ''))",
+                                    "'%$part%'"
+                                );
                                 $ands['rom'][] = $qb->expr()->notLike('lower(title_romaji)', "'%$part%'");
-                                $ands['nat'][] = $qb->expr()->notLike("lower(coalesce(title_english, ''))", "'%$part%'");
+                                $ands['nat'][] = $qb->expr()->notLike(
+                                    "lower(coalesce(title_english, ''))",
+                                    "'%$part%'"
+                                );
                             } else {
                                 $ands['eng'][] = $qb->expr()->like('lower(title_english)', "'%$part%'");
                                 $ands['rom'][] = $qb->expr()->like('lower(title_romaji)', "'%$part%'");
@@ -685,18 +694,21 @@ final class APIService
                         if (strpos($part, '-') === 0 && $part !== '-') {
                             $part = substr($part, 1);
                             $ands[] = $qb->expr()->notLike(
-                                "lower(coalesce(" . $type . ".description, ''))", "'%$part%'"
+                                "lower(coalesce(" . $type . ".description, ''))",
+                                "'%$part%'"
                             );
                         } else {
                             $ands[] = $qb->expr()->like(
-                                "lower(coalesce(" . $type . ".description, ''))", "'%$part%'"
+                                "lower(coalesce(" . $type . ".description, ''))",
+                                "'%$part%'"
                             );
                         }
                     }
                     // Add clauses for explicit terms that can't be exclusions
                     foreach ($explicitTerms as $part) {
                         $ands[] = $qb->expr()->like(
-                            "lower(coalesce(" . $type . ".description, ''))", "'%$part%'"
+                            "lower(coalesce(" . $type . ".description, ''))",
+                            "'%$part%'"
                         );
                     }
 
@@ -917,7 +929,12 @@ final class APIService
                 $sub = $this->db->createQueryBuilder();
                 $sub->select('related_media_id');
                 $sub->from('media_relations');
-                $sub->innerJoin('media_relations', 'awc_community_lists', 'cl', 'media_relations.media_id = cl.media_id');
+                $sub->innerJoin(
+                    'media_relations',
+                    'awc_community_lists',
+                    'cl',
+                    'media_relations.media_id = cl.media_id'
+                );
 
                 $where = array_merge(
                     $where,
@@ -1202,7 +1219,8 @@ final class APIService
             $this->log->debug(((microtime(true) - $tStart) * 1000) . 'ms');
 
             $tStart = microtime(true);
-            $query = 'SELECT DISTINCT jsonb_array_elements_text(media.external_links) AS value FROM media ORDER BY value ASC';
+            $query = 'SELECT DISTINCT jsonb_array_elements_text(media.external_links) AS value'
+                . ' FROM media ORDER BY value ASC';
             $this->log->debug($query);
             $results = $this->db->executeQuery($query)->fetchAllAssociative();
             $filterValues['external_links'] = array_filter(array_map($f, $results));
@@ -1242,7 +1260,8 @@ final class APIService
 
             if ($mediaType === 'STAFF') {
                 $tStart = microtime(true);
-                $query = 'SELECT DISTINCT jsonb_array_elements_text(primary_occupations) AS value FROM staff ORDER BY value ASC';
+                $query = 'SELECT DISTINCT jsonb_array_elements_text(primary_occupations) AS value'
+                    . ' FROM staff ORDER BY value ASC';
                 $this->log->debug($query);
                 $results = $this->db->executeQuery($query)->fetchAllAssociative();
                 $filterValues['primary_occupations'] = array_filter(array_map($f, $results));
@@ -1264,7 +1283,7 @@ final class APIService
             self::USER_LIST_QUERY,
             [
                 'userName' => $userName,
-                'mediaType' => $mediaType
+                'mediaType' => $mediaType,
             ],
             null,
             null,
@@ -1298,7 +1317,7 @@ final class APIService
         if (\count($lists) === 0) {
             $errors[] = [
                 'source' => 'AniTools',
-                'message' => 'Couldn\'t find any lists for specified user'
+                'message' => 'Couldn\'t find any lists for specified user',
             ];
         }
 

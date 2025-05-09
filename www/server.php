@@ -27,11 +27,13 @@ use function React\Async\async;
 include 'vendor/autoload.php';
 
 // Checking whether all required environment variables are set
-if (! (getenv('DB_USER') &&
+if (
+    ! (getenv('DB_USER') &&
     getenv('DB_DATABASE') &&
     getenv('DB_PASSWORD') &&
     getenv('MEILI_MASTERKEY')
-)) {
+    )
+) {
     echo 'It seems that this server was started before an .env file was generated.';
     die;
 }
@@ -73,8 +75,7 @@ foreach ($endpoints as $endpoint) {
 
 $logger->debug("Instantiating ReactPHP server");
 $server = new React\Http\HttpServer(
-    async(function (Psr\Http\Message\ServerRequestInterface $request) use ($router, $logger)
-    {
+    async(function (Psr\Http\Message\ServerRequestInterface $request) use ($router, $logger) {
         $responseHeaders = [
             'Content-Type' => 'application/json',
             'Server'       => '',

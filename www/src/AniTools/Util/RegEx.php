@@ -31,7 +31,7 @@ final readonly class RegEx
 
         // Given that postgres has different flags than PHP we only test the validity of the pattern itself
         // without the flags
-        if(@preg_match('/' . $pattern . '/', '') === false) {
+        if (@preg_match('/' . $pattern . '/', '') === false) {
             throw new \InvalidArgumentException('Invalid RegEx pattern');
         }
 
@@ -46,7 +46,7 @@ final readonly class RegEx
             if ($parts[1] !== 'i') {
                 throw new \InvalidArgumentException('Currently only "i" is allowed as a flag');
             }
-            $pattern = '(?' .  $parts[1] . ')' . $pattern;
+            $pattern = '(?' . $parts[1] . ')' . $pattern;
             $this->flags = $parts[1];
         } else {
             $this->flags = null;
