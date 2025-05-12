@@ -414,7 +414,7 @@ final class APIService
             if (! checkdate((int) $month, (int) $day, (int) $year)) {
                 return $where;
             }
-            
+
             $t = 'make_date(' . $mapped['y'] . ', coalesce(' . $mapped['m'] . ', 1), coalesce(' . $mapped['d']
                 . ', 1))';
 
@@ -557,7 +557,7 @@ final class APIService
 
                         $value = implode(' ', array_filter($nonExplicitTerms));
                     }
-                    
+
                     // Split by spaces
                     $parts = explode(' ', $value);
                     // Checks if only exlusion terms have been passed in which case the where clauses will make sure
@@ -688,7 +688,7 @@ final class APIService
 
                         $value = implode(' ', array_filter($nonExplicitTerms));
                     }
-                    
+
                     // Split by spaces
                     $parts = explode(' ', $value);
                     $ands = [];
@@ -1268,7 +1268,7 @@ final class APIService
                 $this->log->debug($query);
                 $results = $this->db->executeQuery($query)->fetchAllAssociative();
                 $filterValues['primary_occupations'] = array_filter(array_map($f, $results));
-            $this->log->debug(((microtime(true) - $tStart) * 1000) . 'ms');
+                $this->log->debug(((microtime(true) - $tStart) * 1000) . 'ms');
             }
         }
 
@@ -1493,8 +1493,8 @@ final class APIService
                     $mapped = [$mapped];
                 }
 
-                    foreach ($mapped as $m) {
-                        $sel->addOrderBy($m . ' ' . $criterium['dir'] . ' NULLS LAST');
+                foreach ($mapped as $m) {
+                    $sel->addOrderBy($m . ' ' . $criterium['dir'] . ' NULLS LAST');
                 }
             }
         }
@@ -1625,8 +1625,8 @@ final class APIService
                     $mapped = [$mapped];
                 }
 
-                    foreach ($mapped as $m) {
-                        $sel->addOrderBy($m . ' ' . $criterium['dir'] . ' NULLS LAST');
+                foreach ($mapped as $m) {
+                    $sel->addOrderBy($m . ' ' . $criterium['dir'] . ' NULLS LAST');
                 }
             }
         }
@@ -1768,7 +1768,7 @@ final class APIService
         // Now figure out the amount of filtered entries
         $whereClauses = array_merge($whereClauses, $this->getWhereClauses('media', $filters, $sel, $userName));
 
-            $totalSel->where(...$whereClauses);
+        $totalSel->where(...$whereClauses);
         $this->log->debug((string) $totalSel, ['username' => '(' . ($userName ?? 'Anonymous') . ') ']);
         $filteredTotals = $totalSel->executeQuery()->fetchAssociative();
 
@@ -1830,8 +1830,8 @@ final class APIService
                     $mapped = [$mapped];
                 }
 
-                    foreach ($mapped as $m) {
-                        $sel->addOrderBy($m . ' ' . $criterium['dir'] . ' NULLS LAST');
+                foreach ($mapped as $m) {
+                    $sel->addOrderBy($m . ' ' . $criterium['dir'] . ' NULLS LAST');
                 }
             }
         }

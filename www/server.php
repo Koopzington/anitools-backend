@@ -122,8 +122,8 @@ $server = new React\Http\HttpServer(
                 default:
                     return new Response(
                         Response::STATUS_NOT_FOUND,
-                            $responseHeaders,
-                            '',
+                        $responseHeaders,
+                        '',
                     );
             }
         }

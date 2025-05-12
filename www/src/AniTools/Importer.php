@@ -218,17 +218,17 @@ final class Importer
                 $statsDropped = 0;
                 $statsPaused = 0;
 
-                    foreach ($media['stats']['statusDistribution'] as $s) {
+                foreach ($media['stats']['statusDistribution'] as $s) {
                     if ($s['status'] === 'CURRENT') {
-                                $statsCurrent = $s['amount'];
+                        $statsCurrent = $s['amount'];
                     } elseif ($s['status'] === 'PLANNING') {
-                                $statsPlanning = $s['amount'];
+                        $statsPlanning = $s['amount'];
                     } elseif ($s['status'] === 'COMPLETED') {
-                                $statsCompleted = $s['amount'];
+                        $statsCompleted = $s['amount'];
                     } elseif ($s['status'] === 'DROPPED') {
-                                $statsDropped = $s['amount'];
+                        $statsDropped = $s['amount'];
                     } elseif ($s['status'] === 'PAUSED') {
-                                $statsPaused = $s['amount'];
+                        $statsPaused = $s['amount'];
                     }
                 }
 
@@ -350,33 +350,33 @@ final class Importer
                 }
 
                 if (isset($media['studios'])) {
-                // Collect studios/producers
-                $uStudios = [];
-                $uProducers = [];
-                foreach ($media['studios']['edges'] as $s) {
+                    // Collect studios/producers
+                    $uStudios = [];
+                    $uProducers = [];
+                    foreach ($media['studios']['edges'] as $s) {
                         if ($s['isMain'] === true && in_array($s['node']['name'], $uStudios, true)) {
-                        $this->log->debug(
+                            $this->log->debug(
                                 $mediaType . ' id:' . $media['id']
                                     . ' has duplicated studios. Consider reporting this.'
-                        );
-                        continue;
-                    }
+                            );
+                            continue;
+                        }
                         if ($s['isMain'] === false && in_array($s['node']['name'], $uProducers, true)) {
-                        $this->log->debug(
+                            $this->log->debug(
                                 $mediaType . ' id:' . $media['id']
                                     . ' has duplicated producers. Consider reporting this.'
-                        );
-                        continue;
-                    }
+                            );
+                            continue;
+                        }
 
                         if ($s['isMain'] === true) {
-                        $uStudios[] = $s['node']['name'];
-                    } else {
-                        $uProducers[] = $s['node']['name'];
+                            $uStudios[] = $s['node']['name'];
+                        } else {
+                            $uProducers[] = $s['node']['name'];
+                        }
                     }
-                }
-                $v['studios'] = $uStudios;
-                $v['producers'] = $uProducers;
+                    $v['studios'] = $uStudios;
+                    $v['producers'] = $uProducers;
                 }
 
                 $values[] = $v;
@@ -485,7 +485,7 @@ final class Importer
                     'blood_type' => $row['bloodType'],
                     'favourites' => $row['favourites'],
                     'name_alternatives' => $row['name']['alternative'],
-                    'name_alternatives_spoiler' => $row['name']['alternativeSpoiler']
+                    'name_alternatives_spoiler' => $row['name']['alternativeSpoiler'],
                 ];
             }
             $this->db->executeQuery(DBService::getBatchInsertFor('characters', $values, 'characters_pk', true));
@@ -888,7 +888,7 @@ final class Importer
                 continue;
             }
             $row['id'] = $id;
-                        $row['last_updated'] = date('Y-m-d H:i:s', $row['last_updated']);
+            $row['last_updated'] = date('Y-m-d H:i:s', $row['last_updated']);
             $forInserts[] = $row;
         }
 
