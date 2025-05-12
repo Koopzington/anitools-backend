@@ -17,7 +17,7 @@
         "ext-pcntl": "*",
         "react/event-loop": "^1.2",
         "react/http": "^1.5",
-        "symfony/console": "^6.0",
+        "symfony/console": "^7.2",
         "spatie/guzzle-rate-limiter-middleware": "^2.0",
         "guzzlehttp/guzzle": "^7.4",
         "doctrine/dbal": "^4.0",
