@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AniTools\Endpoint;
 
 use AniTools\APIService;
+use AniTools\Util\AniListOAuthChecker;
 use Aura\Router\Route;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -55,10 +56,28 @@ final class UserLists implements EndpointInterface
             $withTimeout = false;
         }
 
+        // Pass the auth token through if present and verified to import media marked as private
+        $authToken = null;
+        if ($request->hasHeader('Authorization') === true) {
+            try {
+                AniListOAuthChecker::verify($request->getHeader('Authorization'));
+                // Split token and "Bearer"
+                $exp = explode(' ', $request->getHeader('Authorization')[0]);
+                $authToken = $exp[1];
+            } catch (\UnexpectedValueException $e) {
+                return new Response(
+                    Response::STATUS_BAD_REQUEST,
+                    $response->getHeaders(),
+                    json_encode(['error' => $e->getMessage()])
+                );
+            }
+        }
+
         $result = $this->apiService->getUserLists(
             $queryParams['user_name'],
             $queryParams['media_type'],
-            $withTimeout
+            $withTimeout,
+            $authToken
         );
 
         if (isset($result['errors'])) {

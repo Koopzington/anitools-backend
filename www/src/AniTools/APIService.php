@@ -8,6 +8,7 @@ use AniTools\Util\AniListClient;
 use AniTools\Util\IntRange;
 use AniTools\Util\MediaType;
 use AniTools\Util\RegEx;
+use AniTools\Util\User;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\Expression\CompositeExpression;
 use Doctrine\DBAL\Query\QueryBuilder;
@@ -199,6 +200,7 @@ final class APIService
                     hiddenFromStatusLists
                     createdAt
                     updatedAt
+                    private
                 }
             }
         }
@@ -1275,8 +1277,12 @@ final class APIService
     }
 
     /** @return array<array<string, mixed>> | array<string, array<int, array<string, mixed>>> */
-    public function getUserLists(string $userName, string $mediaType, bool $withTimeout): array
-    {
+    public function getUserLists(
+        string $userName,
+        string $mediaType,
+        bool $withTimeout,
+        ?string $authToken,
+    ): array {
         $this->log->debug('Retrieving current MediaListCollection from AniList');
         $tStart = microtime(true);
         $response = AniListClient::request(
@@ -1285,7 +1291,7 @@ final class APIService
                 'userName' => $userName,
                 'mediaType' => $mediaType,
             ],
-            null,
+            $authToken,
             null,
             $withTimeout
         );
@@ -1675,6 +1681,7 @@ final class APIService
         int $length,
         array $sortCriteria,
         ?string $userName,
+        ?User $authedUser,
     ): array {
         $timings = [];
         // If the following columns are being queried, they need to get returned as subarrays
@@ -1712,7 +1719,14 @@ final class APIService
             $sub->select('*');
             $sub->from('user_media');
             $sub->innerJoin('user_media', '"user"', '"user"', 'user_media.user_id = "user".id');
-            $sub->where($sub->expr()->eq('lower("user".user_name)', "'" . strtolower($userName) . "'"));
+            $sWhere = [
+                $sub->expr()->eq('lower("user".user_name)', "'" . strtolower($userName) . "'")
+            ];
+            // Make sure that users can only see their own private stuff
+            if ($authedUser === null || $authedUser->userName !== $userName) {
+                $sWhere[] = $sub->expr()->eq('is_private', 'false');
+            }
+            $sub->where(...$sWhere);
             $sel->leftJoin('media', '(' . $sub . ')', 'user_media', 'media.id = user_media.media_id');
         }
 

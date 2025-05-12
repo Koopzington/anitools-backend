@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AniTools\Endpoint;
 
 use AniTools\APIService;
+use AniTools\Util\AniListOAuthChecker;
 use AniTools\Util\Filter;
 use AniTools\Util\MediaType;
 use Aura\Router\Route;
@@ -114,6 +115,19 @@ final class Search implements EndpointInterface
 
         $filteredValues = $filter->getValues();
 
+        $authedUser = null;
+        if ($request->hasHeader('Authorization') === true) {
+            try {
+                $authedUser = AniListOAuthChecker::verify($request->getHeader('Authorization'));
+            } catch (\UnexpectedValueException $e) {
+                return new Response(
+                    Response::STATUS_BAD_REQUEST,
+                    $response->getHeaders(),
+                    json_encode(['error' => $e->getMessage()])
+                );
+            }
+        }
+
         $results = match ($mediaType) {
             MediaType::ANIME, MediaType::MANGA => $this->apiService->searchForMedia(
                 $mediaType,
@@ -122,7 +136,8 @@ final class Search implements EndpointInterface
                 $start,
                 $length,
                 $order,
-                $userName
+                $userName,
+                $authedUser
             ),
             MediaType::CHARACTER => $this->apiService->searchForCharacter(
                 $filteredValues,

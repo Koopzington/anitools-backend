@@ -37,7 +37,8 @@ use Monolog\Logger;
  *   },
  *   hiddenFromStatusLists: bool,
  *   createdAt: int,
- *   updatedAt: int
+ *   updatedAt: int,
+ *   private: bool
  * }
  */
 final class DBService
@@ -308,6 +309,7 @@ final class DBService
                     'hidden_from_status_lists' => $media['hiddenFromStatusLists'] ? 'true' : 'false',
                     'created_at' => $media['createdAt'],
                     'updated_at' => $media['updatedAt'],
+                    'is_private' => $media['private'] ? 'true' : 'false',
                 ];
             }
         }
