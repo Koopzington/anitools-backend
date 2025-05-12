@@ -1720,9 +1720,7 @@ final class APIService
             $sub->select('*');
             $sub->from('user_media');
             $sub->innerJoin('user_media', '"user"', '"user"', 'user_media.user_id = "user".id');
-            $sWhere = [
-                $sub->expr()->eq('lower("user".user_name)', "'" . strtolower($userName) . "'")
-            ];
+            $sWhere = [$sub->expr()->eq('lower("user".user_name)', "'" . strtolower($userName) . "'")];
             // Make sure that users can only see their own private stuff
             if ($authedUser === null || $authedUser->userName !== $userName) {
                 $sWhere[] = $sub->expr()->eq('is_private', 'false');
