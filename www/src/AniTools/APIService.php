@@ -78,6 +78,7 @@ final class APIService
         'daysSpent' => '(user_media.completed_at - user_media.started_at) + 1',
         'score' => 'user_media.score',
         'notes' => 'user_media.notes',
+        'isPrivate' => 'user_media.is_private',
         // Staff and Characters
         'nameFirst' => 'name_first',
         'nameMiddle' => 'name_middle',
