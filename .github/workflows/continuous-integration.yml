@@ -27,12 +27,16 @@ jobs:
 
       - name: "Install dependencies (Composer)"
         uses: "ramsey/composer-install@v3"
+        with:
+          working-directory: ./www
 
       - name: "Check syntax (php-parallel-lint)"
-        run: "composer lint -- --colors"
+        run: "./vendor/bin/parallel-lint src cli.php server.php --colors"
+        working-directory: ./www
 
       - name: "Check coding standards (PHP_CodeSniffer)"
         run: "./vendor/bin/phpcs --colors"
+        working-directory: ./www
 
   static-analysis:
     name: "Static analysis"
@@ -49,6 +53,9 @@ jobs:
 
       - name: "Install dependencies (Composer)"
         uses: "ramsey/composer-install@v3"
+        with:
+          working-directory: ./www
 
       - name: "Statically analyze code (PHPStan)"
-        run: "composer phpstan -- --ansi"
+        run: "./vendor/bin/phpstan --ansi"
+        working-directory: ./www
