@@ -10,6 +10,7 @@ use AniTools\Scraper\AWC;
 use AniTools\Scraper\MangaDex;
 use AniTools\Scraper\MangaUpdates;
 use AniTools\Scraper\ScraperInterface;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Command\SignalableCommandInterface;
 use Symfony\Component\Console\Input\InputArgument;
@@ -20,6 +21,7 @@ use Symfony\Component\Console\Question\ChoiceQuestion;
 use Symfony\Component\Console\Question\Question;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
+#[AsCommand(name: 'app:scrape', description: 'Scrapes various datasources in for an import into the local database')]
 final class Scrape extends Command implements SignalableCommandInterface
 {
     private const VALID_SCRAPERS = [
@@ -29,9 +31,6 @@ final class Scrape extends Command implements SignalableCommandInterface
         MangaUpdates::SCRAPER_NAME => MangaUpdates::class,
         MangaDex::SCRAPER_NAME => MangaDex::class,
     ];
-
-    protected static $defaultName = 'app:scrape';
-    protected static $defaultDescription = 'Scrapes various datasources in for an import into the local database.';
 
     private ?ScraperInterface $scraper = null;
     private ?string $dataType = null;
@@ -138,7 +137,7 @@ final class Scrape extends Command implements SignalableCommandInterface
         return [SIGINT];
     }
 
-    public function handleSignal(int $signal)
+    public function handleSignal(int $signal, int|false $previousExitCode = 0): int|false
     {
         // Only handle the SIGINT signal if the scraper actually supports canceling
         if ($signal === SIGINT && $this->scraper !== null && method_exists($this->scraper, 'cancel')) {

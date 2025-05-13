@@ -13,16 +13,15 @@ use Monolog\Formatter\LineFormatter;
 use Monolog\Handler\StreamHandler;
 use Monolog\Level;
 use Monolog\Logger;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+#[AsCommand(name: 'app:meili', description: 'Manages Meili related tasks')]
 final class MeiliManager extends Command
 {
-    protected static $defaultName = 'app:meili';
-    protected static $defaultDescription = 'Manages Meili related tasks';
-
     private const VALID_TASKS = [
         'update-mu-index',
         'prefilter-unmappable-data',

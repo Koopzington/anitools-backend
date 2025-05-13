@@ -7,6 +7,7 @@ namespace AniTools\Command;
 use AniTools;
 use AniTools\DBService;
 use AniTools\Importer;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputArgument;
@@ -14,11 +15,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\ChoiceQuestion;
 
+#[AsCommand(name: 'app:import', description: 'Imports all the data')]
 final class Import extends Command
 {
-    protected static $defaultName = 'app:import';
-    protected static $defaultDescription = 'Imports all the data';
-
     private ?string $source = null;
 
     protected function configure(): void
