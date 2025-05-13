@@ -5,7 +5,6 @@
 
 ![License](https://img.shields.io/github/license/koopzington/anitools-backend)
 [![Githhub Issues](https://img.shields.io/github/issues/koopzington/anitools-backend)](https://github.com/Koopzington/anitools-backend/issues)
-[![GitHub Super-Linter](https://github.com/koopzington/anitools-backend/workflows/Lint%20Code%20Base/badge.svg)](https://github.com/marketplace/actions/super-linter)
 
 ### This is the repository for the backend. The frontend repository is located [here](https://github.com/Koopzington/anitools).
 
