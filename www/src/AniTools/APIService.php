@@ -452,6 +452,110 @@ final class APIService
     }
 
     /**
+     * @param string[] $columns
+     * @param array{
+     *  regex: bool,
+     *  value: string
+     * } $value
+     * @return CompositeExpression[] | string[]
+     */
+    private function getLikeOrRegExClauses(array $columns, array $value, QueryBuilder $qb): array
+    {
+        $where = [];
+
+        if ($value['regex'] === true) {
+            try {
+                $rx = new RegEx($value['value']);
+            } catch (\Exception $e) {
+                // TODO: Throw exception instead and let user know
+                return $where;
+            }
+            $pattern = $rx->postgresFormat;
+
+            $w = [];
+            foreach ($columns as $col) {
+                $w[] = "regexp_count(" . $col . ", '$pattern') > 0";
+            }
+
+            $where[] = $qb->expr()->or(...$w);
+        } else {
+            // Lowercase the string, split it by spaces and make the query needing to match all parts
+            $value = strtolower($value['value']);
+            // Check for quotes in the value, meant for explicit terms that may not be split by spaces
+            $quoteExp = explode('"', $value);
+            $explicitTerms = [];
+            $nonExplicitTerms = [];
+            if (\count($quoteExp) > 1) {
+                foreach ($quoteExp as $key => $part) {
+                    if ($key % 2 === 0) {
+                        $nonExplicitTerms[] = $part;
+                    } else {
+                        $explicitTerms[] = $part;
+                    }
+                }
+
+                $value = implode(' ', array_filter($nonExplicitTerms));
+            }
+
+            // Split by spaces
+            $parts = explode(' ', $value);
+            // Checks if only exlusion terms have been passed in which case the where clauses will make sure
+            // that none of the columns may contain them.
+            $onlyExclusion = \count(
+                array_filter($parts, function ($p) {
+                    return strpos($p, '-') !== 0;
+                })
+            ) === 0;
+            if ($onlyExclusion && \count($explicitTerms) === 0) {
+                $ands = [];
+                foreach ($parts as $part) {
+                    $part = substr($part, 1);
+                    foreach ($columns as $col) {
+                        $ands[] = $qb->expr()->notLike("lower(coalesce(" . $col . ", ''))", "'%$part%'");
+                    }
+                }
+
+                $where[] = $qb->expr()->and(...$ands);
+            } else {
+                $ands = [];
+                foreach (array_keys($columns) as $i) {
+                    $ands[$i] = [];
+                }
+                foreach ($parts as $part) {
+                    // Check for - in front of the part indicating that the columns should NOT include it
+                    if (strpos($part, '-') === 0 && $part !== '-') {
+                        $part = substr($part, 1);
+
+                        foreach ($columns as $i => $col) {
+                            $ands[$i][] = $qb->expr()->notLike("lower(coalesce(" . $col . ", ''))", "'%$part%'");
+                        }
+                    } else {
+                        foreach ($columns as $i => $col) {
+                            $ands[$i][] = $qb->expr()->like('lower(' . $col . ')', "'%$part%'");
+                        }
+                    }
+                }
+
+                // Add clauses for explicit terms that can't be exclusions
+                foreach ($explicitTerms as $part) {
+                    foreach ($columns as $i => $col) {
+                        $ands[$i][] = $qb->expr()->like('lower(' . $col . ')', "'%$part%'");
+                    }
+                }
+
+                $w = [];
+                foreach ($ands as $a) {
+                    $w[] = $qb->expr()->and(...$a);
+                }
+
+                $where[] = $qb->expr()->or(...$w);
+            }
+        }
+
+        return $where;
+    }
+
+    /**
      * @param 'media' | 'staff' | 'characters' $type
      * @param array<string, mixed> $filters
      * @param QueryBuilder $qb
@@ -525,198 +629,45 @@ final class APIService
 
             // Title
             if ($key === 'titleLike') {
-                if ($value['regex'] === true) {
-                    try {
-                        $rx = new RegEx($value['value']);
-                    } catch (\Exception $e) {
-                        // TODO: Throw exception instead and let user know
-                        continue;
-                    }
-                    $pattern = $rx->postgresFormat;
-
-                    $where[] = $qb->expr()->or(
-                        "regexp_count(title_english, '$pattern') > 0",
-                        "regexp_count(title_romaji, '$pattern') > 0",
-                        "regexp_count(title_native, '$pattern') > 0",
-                    );
-                } else {
-                    // Lowercase the string, split it by spaces and make the query needing to match all parts
-                    $value = strtolower($value['value']);
-                    // Check for quotes in the value, meant for explicit terms that may not be split by spaces
-                    $quoteExp = explode('"', $value);
-                    $explicitTerms = [];
-                    $nonExplicitTerms = [];
-                    if (\count($quoteExp) > 1) {
-                        foreach ($quoteExp as $key => $part) {
-                            if ($key % 2 === 0) {
-                                $nonExplicitTerms[] = $part;
-                            } else {
-                                $explicitTerms[] = $part;
-                            }
-                        }
-
-                        $value = implode(' ', array_filter($nonExplicitTerms));
-                    }
-
-                    // Split by spaces
-                    $parts = explode(' ', $value);
-                    // Checks if only exlusion terms have been passed in which case the where clauses will make sure
-                    // that none of the titles may contain them.
-                    $onlyExclusion = \count(
-                        array_filter($parts, function ($p) {
-                            return strpos($p, '-') !== 0;
-                        })
-                    ) === 0;
-                    if ($onlyExclusion && \count($explicitTerms) === 0) {
-                        $ands = [];
-                        foreach ($parts as $part) {
-                            $part = substr($part, 1);
-                            $ands[] = $qb->expr()->notLike("lower(coalesce(title_english, ''))", "'%$part%'");
-                            $ands[] = $qb->expr()->notLike('lower(title_romaji)', "'%$part%'");
-                            $ands[] = $qb->expr()->notLike("lower(coalesce(title_native, ''))", "'%$part%'");
-                        }
-
-                        $where[] = $qb->expr()->and(...$ands);
-                    } else {
-                        $ands = ['eng' => [], 'rom' => [], 'nat' => []];
-                        foreach ($parts as $part) {
-                            // Check for - in front of the part indicating that the title should NOT include it
-                            if (strpos($part, '-') === 0 && $part !== '-') {
-                                $part = substr($part, 1);
-                                $ands['eng'][] = $qb->expr()->notLike(
-                                    "lower(coalesce(title_english, ''))",
-                                    "'%$part%'"
-                                );
-                                $ands['rom'][] = $qb->expr()->notLike('lower(title_romaji)', "'%$part%'");
-                                $ands['nat'][] = $qb->expr()->notLike(
-                                    "lower(coalesce(title_english, ''))",
-                                    "'%$part%'"
-                                );
-                            } else {
-                                $ands['eng'][] = $qb->expr()->like('lower(title_english)', "'%$part%'");
-                                $ands['rom'][] = $qb->expr()->like('lower(title_romaji)', "'%$part%'");
-                                $ands['nat'][] = $qb->expr()->like('lower(title_native)', "'%$part%'");
-                            }
-                        }
-
-                        // Add clauses for explicit terms that can't be exclusions
-                        foreach ($explicitTerms as $part) {
-                            $ands['eng'][] = $qb->expr()->like('lower(title_english)', "'%$part%'");
-                            $ands['rom'][] = $qb->expr()->like('lower(title_romaji)', "'%$part%'");
-                            $ands['nat'][] = $qb->expr()->like('lower(title_native)', "'%$part%'");
-                        }
-
-                        $where[] = $qb->expr()->or(
-                            $qb->expr()->and(...$ands['eng']),
-                            $qb->expr()->and(...$ands['rom']),
-                            $qb->expr()->and(...$ands['nat']),
-                        );
-                    }
-                }
+                $where = array_merge($where, $this->getLikeOrRegExClauses(
+                    [
+                        'title_english',
+                        'title_romaji',
+                        'title_native',
+                    ],
+                    $value,
+                    $qb
+                ));
             }
 
             // Character/Staff name
             if ($key === 'nameLike') {
-                if ($value['regex'] === true) {
-                    try {
-                        $rx = new RegEx($value['value']);
-                    } catch (\Exception $e) {
-                        // TODO: Throw exception instead and let user know
-                        continue;
-                    }
-                    $pattern = $rx->postgresFormat;
-
-                    $where[] = $qb->expr()->or(
-                        "regexp_count(name_full, '$pattern') > 0",
-                        "regexp_count(name_native, '$pattern') > 0",
-                    );
-                } else {
-                    // Lowercase the string, split it by spaces and make the query needing to match all parts
-                    $value = strtolower($value['value']);
-                    $parts = explode(' ', $value);
-                    $ands = ['full' => [], 'native' => []];
-                    foreach ($parts as $part) {
-                        $ands['full'][] = $qb->expr()->like('lower(name_full)', "'%$part%'");
-                        $ands['native'][] = $qb->expr()->like('lower(name_native)', "'%$part%'");
-                    }
-
-                    $where[] = $qb->expr()->or(
-                        $qb->expr()->and(...$ands['full']),
-                        $qb->expr()->and(...$ands['native']),
-                    );
-                }
+                $where = array_merge($where, $this->getLikeOrRegExClauses(
+                    [
+                        'name_full',
+                        'name_native',
+                    ],
+                    $value,
+                    $qb
+                ));
             }
 
             // Notes
             if ($key === 'notesLike') {
-                // Lowercase the string, split it by spaces and make the query needing to match all parts
-                $value = strtolower($value);
-                $parts = explode(' ', $value);
-                $ands = [];
-                foreach ($parts as $part) {
-                    $ands[] = $qb->expr()->like('lower(user_media.notes)', "'%$part%'");
-                }
-                $where[] = $qb->expr()->and(...$ands);
+                $where = array_merge($where, $this->getLikeOrRegExClauses(
+                    ['user_media.notes'],
+                    $value,
+                    $qb
+                ));
             }
 
             // Description
             if ($key === 'descriptionLike') {
-                if ($value['regex'] === true) {
-                    try {
-                        $rx = new RegEx($value['value']);
-                    } catch (\Exception $e) {
-                        // TODO: Throw exception instead and let user know
-                        continue;
-                    }
-                    $pattern = $rx->postgresFormat;
-                    $where[] = "regexp_count(" . $type . ".description, '$pattern') > 0";
-                } else {
-                    // Lowercase the string, split it by spaces and make the query needing to match all parts
-                    $value = strtolower($value['value']);
-                    // Check for quotes in the value, meant for explicit terms that may not be split by spaces
-                    $quoteExp = explode('"', $value);
-                    $explicitTerms = [];
-                    $nonExplicitTerms = [];
-                    if (\count($quoteExp) > 1) {
-                        foreach ($quoteExp as $key => $part) {
-                            if ($key % 2 === 0) {
-                                $nonExplicitTerms[] = $part;
-                            } else {
-                                $explicitTerms[] = $part;
-                            }
-                        }
-
-                        $value = implode(' ', array_filter($nonExplicitTerms));
-                    }
-
-                    // Split by spaces
-                    $parts = explode(' ', $value);
-                    $ands = [];
-                    foreach ($parts as $part) {
-                        // Check for - in front of the part indicating that the title should NOT include it
-                        if (strpos($part, '-') === 0 && $part !== '-') {
-                            $part = substr($part, 1);
-                            $ands[] = $qb->expr()->notLike(
-                                "lower(coalesce(" . $type . ".description, ''))",
-                                "'%$part%'"
-                            );
-                        } else {
-                            $ands[] = $qb->expr()->like(
-                                "lower(coalesce(" . $type . ".description, ''))",
-                                "'%$part%'"
-                            );
-                        }
-                    }
-                    // Add clauses for explicit terms that can't be exclusions
-                    foreach ($explicitTerms as $part) {
-                        $ands[] = $qb->expr()->like(
-                            "lower(coalesce(" . $type . ".description, ''))",
-                            "'%$part%'"
-                        );
-                    }
-
-                    $where[] = $qb->expr()->and(...$ands);
-                }
+                $where = array_merge($where, $this->getLikeOrRegExClauses(
+                    [$type . '.description'],
+                    $value,
+                    $qb
+                ));
             }
 
             // Minimum episodes

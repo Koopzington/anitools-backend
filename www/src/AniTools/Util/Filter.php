@@ -16,7 +16,7 @@ final class Filter
         'producer' => 'array_string',
         'externalLink' => 'array_string',
         'titleLike' => 'string_or_regex',
-        'notesLike' => 'string',
+        'notesLike' => 'string_or_regex',
         'descriptionLike' => 'string_or_regex',
         'episodesMin' => 'int',
         'episodesMax' => 'int',
@@ -136,7 +136,6 @@ final class Filter
 
             $filteredValue = match ($dataType) {
                 'int' => (int) $values,
-                'string' => (string) $values,
                 'string_or_regex' => [ 'regex' => (bool) $values['regex'], 'value' => (string) $values['value'] ],
                 'bool' => $values === 'true' || $values === true ? true : false,
                 'array' => $values,
@@ -163,9 +162,6 @@ final class Filter
             }
 
             // Escape single quotes on values
-            if ($dataType === 'string') {
-                $filteredValue = str_replace("'", "''", $filteredValue);
-            }
             if ($dataType === 'string_or_regex') {
                 $filteredValue['value'] = str_replace("'", "''", $filteredValue['value']);
             }
