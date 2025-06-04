@@ -33,6 +33,7 @@ final class APIService
         'title' => 'title_romaji',
         'titleEng' => 'COALESCE(title_english, title_romaji)',
         'titleNat' => 'title_native',
+        'synonyms' => 'synonyms',
         'id' => 'id',
         'season' => 'season',
         'year' => 'media.start_date_y',
@@ -1644,6 +1645,7 @@ final class APIService
             'producers',
             'externalLinks',
             'references',
+            'synonyms',
         ];
         $subDataNeeded = [];
         foreach ($columns as $c) {
