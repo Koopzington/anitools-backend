@@ -685,17 +685,20 @@ final class APIService
                 );
             }
             // Minimum volumes
-            if ($key === 'volumesMin' && $value !== 0) {
-                $where[] = $qb->expr()->gte('volumes', (string) $value);
+            if ($key === 'volumesMin') {
+                // The db doesn't consider null = 0 so we gotta include the null values
+                if ($value === 0) {
+                    $where[] = $qb->expr()->or(
+                        $qb->expr()->gte('volumes', (string) $value),
+                        $qb->expr()->isNull('volumes'),
+                    );
+                } else {
+                    $where[] = $qb->expr()->gte('volumes', (string) $value);
+                }
             }
             // Maximum volumes
-            if ($key === 'volumesMax' && $value !== 0) {
-                // The db doesn't consider null = 0 so we gotta include the null values
-                // If minimum volumes > 0 the null values will get filtered out again
-                $where[] = $qb->expr()->or(
-                    $qb->expr()->lte('volumes', (string) $value),
-                    $qb->expr()->isNull('volumes'),
-                );
+            if ($key === 'volumesMax') {
+                $where[] = $qb->expr()->lte('volumes', (string) $value);
             }
             // Minimum totalRuntime
             if ($key === 'totalRuntimeMin' && $value !== 0) {

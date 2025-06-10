@@ -280,7 +280,7 @@ final class Importer
                     'status' => $media['status'],
                     'is_adult' => (int) $media['isAdult'],
                     'is_licensed' => (int) $media['isLicensed'],
-                    'volumes' => $media['volumes'] ?? null,
+                    'volumes' => $media['volumes'] ?? 0,
                     'reviews' => $media['reviews']['pageInfo']['total'],
                     'start_date_y' => $media['startDate']['year'],
                     'start_date_m' => $media['startDate']['month'],
