@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AniTools;
 
 use AniTools\Scraper\Animeshon;
+use AniTools\Scraper\MangaBaka;
 use AniTools\Scraper\MangaDex;
 use AniTools\Scraper\MangaUpdates;
 use Doctrine\DBAL\Connection;
@@ -93,6 +94,7 @@ final class Importer
         'animeshon',
         'mangaupdates',
         'mangadex',
+        'mangabaka',
     ];
 
     private const IMPORT_DIR = 'data/import/';
@@ -135,6 +137,7 @@ final class Importer
             'animeshon' => $this->importAnimeShonCrossRefs(),
             'mangaupdates' => $this->importMangaUpdatesSeries(),
             'mangadex' => $this->importMangaDexMappings(),
+            'mangabaka' => $this->importMangaBakaMappings(),
             default => Command::FAILURE,
         };
     }
@@ -854,6 +857,72 @@ final class Importer
         $del = $this->db->createQueryBuilder();
         $del->delete('media_external_ids');
         $del->where($del->expr()->eq('source', "'MangaDex'"));
+        $del->executeQuery();
+
+        $progressbar = new ProgressBar($this->output, \count($forInserts));
+
+        // Insert new mappings
+        $chunks = array_chunk($forInserts, self::CHUNK_SIZE);
+        foreach ($chunks as $chunk) {
+            $this->db->beginTransaction();
+            $this->db->executeQuery(DBService::getBatchInsertFor('media_external_ids', $chunk));
+            $progressbar->advance(\count($chunk));
+            $this->db->commit();
+        }
+        $progressbar->finish();
+        $this->output->write(PHP_EOL);
+
+        return Command::SUCCESS;
+    }
+
+    private function importMangaBakaMappings(): int
+    {
+        $this->output->writeln('Importing MangaBaka mappings');
+        $file = MangaBaka::MAPPINGS_FILE;
+
+        if (! file_exists($file)) {
+            $this->output->writeln("<error>File: '$file' doesn't exist.</error>");
+        }
+
+        $data = json_decode(file_get_contents($file), true);
+
+        // Due to foreign key constraints we need to make sure AL actually still has the manga we're trying to link
+        $allALIds = $this->db->executeQuery("SELECT media.id FROM media WHERE media_type = 'MANGA'")
+            ->fetchAllAssociativeIndexed();
+        $allALIds = array_keys($allALIds);
+
+        $forInserts = [];
+
+        $map = [
+            'ann' => 'AnimeNewsNetwork',
+            'md' => 'MangaDex',
+            'mu' => 'MangaUpdates',
+            'mal' => 'MyAnimeList',
+            'ki' => 'Kitsu',
+        ];
+        foreach ($data as $alId => $refs) {
+            // Skip manga AL already deleted
+            if (! in_array($alId, $allALIds, true)) {
+                //$this->output->writeln(
+                //    'The AL manga with id "' . $alId . '" no longer exists or hasn\'t been scraped yet'
+                //);
+                continue;
+            }
+
+            foreach ($refs as $site => $id) {
+                $forInserts[] = [
+                    'media_id' => $alId,
+                    'service' => $map[$site],
+                    'external_id' => $id,
+                    'source' => 'MangaBaka',
+                ];
+            }
+        }
+
+        // Delete old mappings
+        $del = $this->db->createQueryBuilder();
+        $del->delete('media_external_ids');
+        $del->where($del->expr()->eq('source', "'MangaBaka'"));
         $del->executeQuery();
 
         $progressbar = new ProgressBar($this->output, \count($forInserts));

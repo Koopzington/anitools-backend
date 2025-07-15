@@ -7,6 +7,7 @@ namespace AniTools\Command;
 use AniTools\Scraper\AniList;
 use AniTools\Scraper\Animeshon;
 use AniTools\Scraper\AWC;
+use AniTools\Scraper\MangaBaka;
 use AniTools\Scraper\MangaDex;
 use AniTools\Scraper\MangaUpdates;
 use AniTools\Scraper\ScraperInterface;
@@ -30,6 +31,7 @@ final class Scrape extends Command implements SignalableCommandInterface
         Animeshon::SCRAPER_NAME => Animeshon::class,
         MangaUpdates::SCRAPER_NAME => MangaUpdates::class,
         MangaDex::SCRAPER_NAME => MangaDex::class,
+        MangaBaka::SCRAPER_NAME => MangaBaka::class,
     ];
 
     private ?ScraperInterface $scraper = null;

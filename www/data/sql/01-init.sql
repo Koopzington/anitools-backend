@@ -86,7 +86,9 @@ ALTER TYPE anitools.media_characters_role OWNER TO anitools;
 CREATE TYPE anitools.media_external_ids_service AS ENUM (
     'MyAnimeList',
     'MangaUpdates',
-    'MangaDex'
+    'MangaDex',
+    'AnimeNewsNetwork',
+    'Kitsu'
 );
 
 
@@ -100,7 +102,8 @@ CREATE TYPE anitools.media_external_ids_sources AS ENUM (
     'AniList',
     'Animeshon',
     'AniTools',
-    'MangaDex'
+    'MangaDex',
+    'MangaBaka'
 );
 
 

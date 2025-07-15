@@ -10,7 +10,7 @@
 
 ## Why not use AniList's API directly?
 AniList's API doesn't provide the filtering possibilities that one might need for finding suitable media entries for challenges of AniList's [Anime Watching Club](https://anilist.co/forum/thread/4449).
-It also provides very limited filtering options for a user's own list. In addition to that AniTools provides a mapping between MangaUpdates and manga on AniList for additional convenience. The data for the mapping is sourced from MangaDex, Animeshon as well as through a selfwritten mapping module.
+It also provides very limited filtering options for a user's own list. In addition to that AniTools provides a mapping between MangaUpdates and manga on AniList for additional convenience. The data for the mapping is sourced from [MangaDex](https://api.mangadex.org/docs/), Animeshon, [MangaBaka](https://mangabaka.dev/database) as well as through a selfwritten mapping module.
 
 ## What endpoints does the API provide and how to use them?
 
