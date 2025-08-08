@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AniTools\Endpoint;
 
 use AniTools\APIService;
+use AniTools\DBService;
 use AniTools\Util\AniListOAuthChecker;
 use AniTools\Util\Filter;
 use AniTools\Util\MediaType;
@@ -16,10 +17,12 @@ use React\Http\Message\Response;
 final class Search implements EndpointInterface
 {
     private APIService $apiService;
+    private DBService $dbservice;
 
-    public function __construct(APIService $apiService)
+    public function __construct(APIService $apiService, DBService $dBService)
     {
         $this->apiService = $apiService;
+        $this->dbservice = $dBService;
     }
 
     public function getRoute(): Route
@@ -112,6 +115,20 @@ final class Search implements EndpointInterface
         }
 
         $userName = $params['userName'] ?? null;
+        $user = null;
+
+        // The user should already be present in the database at this point in time
+        if ($userName !== null && strlen($userName) > 0) {
+            try {
+                $user = $this->dbservice->getUserByName($userName);
+            } catch (\UnexpectedValueException $e) {
+                return new Response(
+                    Response::STATUS_BAD_REQUEST,
+                    $response->getHeaders(),
+                    json_encode(['error' => $e->getMessage()])
+                );
+            }
+        }
 
         $filteredValues = $filter->getValues();
 
@@ -136,7 +153,7 @@ final class Search implements EndpointInterface
                 $start,
                 $length,
                 $order,
-                $userName,
+                $user,
                 $authedUser
             ),
             MediaType::CHARACTER => $this->apiService->searchForCharacter(
@@ -145,7 +162,7 @@ final class Search implements EndpointInterface
                 $start,
                 $length,
                 $order,
-                $userName
+                $user
             ),
             MediaType::STAFF => $this->apiService->searchForStaff(
                 $filteredValues,
@@ -153,7 +170,7 @@ final class Search implements EndpointInterface
                 $start,
                 $length,
                 $order,
-                $userName
+                $user
             ),
         };
 

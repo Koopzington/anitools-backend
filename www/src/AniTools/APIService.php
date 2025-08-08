@@ -369,7 +369,7 @@ final class APIService
     /**
      * @return CompositeExpression[] | string[]
      */
-    private function getFuzzyDateClauses(string $filter, string $value, QueryBuilder $qb, ?string $userName): array
+    private function getFuzzyDateClauses(string $filter, string $value, QueryBuilder $qb, ?User $user): array
     {
         $where = [];
         $min = false;
@@ -440,9 +440,8 @@ final class APIService
             $sub = $this->db->createQueryBuilder();
             $sub->select('media_id');
             $sub->from('user_media');
-            $sub->innerJoin('user_media', '"user"', '"user"', 'user_media.user_id = "user".id');
             $sub->where(
-                $sub->expr()->eq('lower("user".user_name)', "'" . strtolower($userName) . "'"),
+                $sub->expr()->eq('user_media.user_id', (string) $user->id),
                 ...$where
             );
 
@@ -563,7 +562,7 @@ final class APIService
      * @param string|null $userName
      * @return CompositeExpression[] | string[]
      */
-    public function getWhereClauses(string $type, array $filters, QueryBuilder $qb, ?string $userName): array
+    public function getWhereClauses(string $type, array $filters, QueryBuilder $qb, ?User $user): array
     {
         $where = [];
 
@@ -578,13 +577,13 @@ final class APIService
 
         foreach ($filters as $key => $value) {
             if ($key === 'and') {
-                $subClauses = $this->getWhereClauses($type, $value, $qb, $userName);
+                $subClauses = $this->getWhereClauses($type, $value, $qb, $user);
                 if (\count($subClauses) > 0) {
                     $where[] = $qb->expr()->and(...$subClauses);
                 }
             }
             if ($key === 'or') {
-                $subClauses = $this->getWhereClauses($type, $value, $qb, $userName);
+                $subClauses = $this->getWhereClauses($type, $value, $qb, $user);
                 if (\count($subClauses) > 0) {
                     $where[] = $qb->expr()->or(...$subClauses);
                 }
@@ -602,7 +601,7 @@ final class APIService
                     && isset(self::FUZZYDATE_MAP[substr($key, 0, -3)])
                 )
             ) {
-                $where = array_merge($where, $this->getFuzzyDateClauses($key, $value, $qb, $userName));
+                $where = array_merge($where, $this->getFuzzyDateClauses($key, $value, $qb, $user));
             }
 
             // ID
@@ -962,7 +961,7 @@ final class APIService
             if ($key === 'userList') {
                 // Ignore when no username was passed
                 // TODO: throw an exception telling the user to provide the username
-                if ($userName === null) {
+                if ($user === null) {
                     continue;
                 }
 
@@ -979,9 +978,8 @@ final class APIService
                 $allSub = $this->db->createQueryBuilder();
                 $allSub->select('media_id');
                 $allSub->from('user_media');
-                $allSub->innerJoin('user_media', '"user"', '"user"', 'user_media.user_id = "user".id');
                 $allSub->where(
-                    $allSub->expr()->eq('lower("user".user_name)', "'" . strtolower($userName) . "'"),
+                    $allSub->expr()->eq('user_media.user_id', (string) $user->id),
                 );
 
 
@@ -1366,7 +1364,7 @@ final class APIService
         int $start,
         int $length,
         array $sortCriteria,
-        ?string $userName,
+        ?User $user,
     ) {
         $timings = [];
         // If the following columns are being queried, they need to get returned as subarrays
@@ -1396,18 +1394,18 @@ final class APIService
         $totalAmount = $totals['count'];
 
         // Now figure out the amount of filtered entries
-        $whereClauses = $this->getWhereClauses('characters', $filters, $sel, $userName);
+        $whereClauses = $this->getWhereClauses('characters', $filters, $sel, $user);
 
         if (\count($whereClauses) > 0) {
             $totalSel->where(...$whereClauses);
         }
-        $this->log->debug((string) $totalSel, ['username' => '(' . ($userName ?? 'Anonymous') . ') ']);
+        $this->log->debug((string) $totalSel, ['username' => '(' . ($user->userName ?? 'Anonymous') . ') ']);
         $filteredTotals = $totalSel->executeQuery()->fetchAssociative();
 
         $timings[] = 'db-total;dur=' . ((microtime(true) - $tStart) * 1000);
 
         $tStart = microtime(true);
-        $colMap = $this->mapColumns(MediaType::CHARACTER, $columns, $userName);
+        $colMap = $this->mapColumns(MediaType::CHARACTER, $columns, $user->userName);
         $sel->select(...$colMap);
         if (\count($whereClauses) > 0) {
             $sel->where(...$whereClauses);
@@ -1440,7 +1438,7 @@ final class APIService
 
                 // TODO: maybe split into manga and anime?
                 // We need extra steps if we want to sort by the amount of appearances
-                if ($mapped === 'appearances' && $userName !== null) {
+                if ($mapped === 'appearances' && $user !== null) {
                     $mapped = 'appearances.amount';
                 }
 
@@ -1458,7 +1456,7 @@ final class APIService
         $sel->addOrderBy('characters.id ASC');
 
         // Get the data for the requested page
-        $this->log->debug((string) $sel, ['username' => '(' . ($userName ?? 'Anonymous') . ') ']);
+        $this->log->debug((string) $sel, ['username' => '(' . ($user->userName ?? 'Anonymous') . ') ']);
         $results = $sel->executeQuery()->fetchAllAssociativeIndexed();
         $timings[] = 'db-page-main;dur=' . ((microtime(true) - $tStart) * 1000);
         $ids = array_keys($results);
@@ -1503,7 +1501,7 @@ final class APIService
         int $start,
         int $length,
         array $sortCriteria,
-        ?string $userName,
+        ?User $user,
     ) {
         $timings = [];
         // If the following columns are being queried, they need to get returned as subarrays
@@ -1533,18 +1531,18 @@ final class APIService
         $totalAmount = $totals['count'];
 
         // Now figure out the amount of filtered entries
-        $whereClauses = $this->getWhereClauses('staff', $filters, $sel, $userName);
+        $whereClauses = $this->getWhereClauses('staff', $filters, $sel, $user);
 
         if (\count($whereClauses) > 0) {
             $totalSel->where(...$whereClauses);
         }
-        $this->log->debug((string) $totalSel, ['username' => '(' . ($userName ?? 'Anonymous') . ') ']);
+        $this->log->debug((string) $totalSel, ['username' => '(' . ($user->userName ?? 'Anonymous') . ') ']);
         $filteredTotals = $totalSel->executeQuery()->fetchAssociative();
 
         $timings[] = 'db-total;dur=' . ((microtime(true) - $tStart) * 1000);
 
         $tStart = microtime(true);
-        $colMap = $this->mapColumns(MediaType::STAFF, $columns, $userName);
+        $colMap = $this->mapColumns(MediaType::STAFF, $columns, $user->userName);
         $sel->select(...$colMap);
         if (\count($whereClauses) > 0) {
             $sel->where(...$whereClauses);
@@ -1590,7 +1588,7 @@ final class APIService
         $sel->addOrderBy('staff.id ASC');
 
         // Get the data for the requested page
-        $this->log->debug((string) $sel, ['username' => '(' . ($userName ?? 'Anonymous') . ') ']);
+        $this->log->debug((string) $sel, ['username' => '(' . ($user->userName ?? 'Anonymous') . ') ']);
         $results = $sel->executeQuery()->fetchAllAssociativeIndexed();
         $timings[] = 'db-page-main;dur=' . ((microtime(true) - $tStart) * 1000);
         $ids = array_keys($results);
@@ -1636,7 +1634,7 @@ final class APIService
         int $start,
         int $length,
         array $sortCriteria,
-        ?string $userName,
+        ?User $user,
         ?User $authedUser,
     ): array {
         $timings = [];
@@ -1671,14 +1669,14 @@ final class APIService
 
         $totalSel = clone $sel;
 
-        if ($userName !== null) {
+        if ($user !== null) {
             $sub = $this->db->createQueryBuilder();
             $sub->select('*');
             $sub->from('user_media');
             $sub->innerJoin('user_media', '"user"', '"user"', 'user_media.user_id = "user".id');
-            $sWhere = [$sub->expr()->eq('lower("user".user_name)', "'" . strtolower($userName) . "'")];
+            $sWhere = [$sub->expr()->eq('lower("user".user_name)', "'" . strtolower($user->userName) . "'")];
             // Make sure that users can only see their own private stuff
-            if ($authedUser === null || $authedUser->userName !== $userName) {
+            if ($authedUser === null || $authedUser->userName !== $user->userName) {
                 $sWhere[] = $sub->expr()->eq('is_private', 'false');
             }
             $sub->where(...$sWhere);
@@ -1692,7 +1690,7 @@ final class APIService
         // We need to make some adjustments for determining the "total entries" in case user lists are involved
         // However since the filtering theoretically allows you to create very specific conditions to the point where
         // you can't determine what "total entries" are even considered we'll only look on simple cases
-        if (isset($filters['and']['userList']['and']) && $userName !== null) {
+        if (isset($filters['and']['userList']['and']) && $user !== null) {
             $totalSel->innerJoin('media', '(' . $sub . ')', 'user_media', 'media.id = user_media.media_id');
             // Add a column to get the amount of entries the user has completed
             $tCols[] = 'SUM(CASE WHEN user_media.status = \'COMPLETED\' THEN 1 ELSE 0 END) as count_completed';
@@ -1702,10 +1700,10 @@ final class APIService
                 'userList' => $filters['and']['userList'],
             ];
 
-            $totalWhere = $this->getWhereClauses('media', $totalWhere, $totalSel, $userName);
+            $totalWhere = $this->getWhereClauses('media', $totalWhere, $totalSel, $user);
             $totalSel->where(...$totalWhere);
 
-            $this->log->debug((string) $totalSel, ['username' => '(' . $userName . ') ']);
+            $this->log->debug((string) $totalSel, ['username' => '(' . $user->userName . ') ']);
             $result = $totalSel->executeQuery()->fetchAssociative();
             $totalAmount = $result['count'];
             $totalEpisodes = $result['episodes'];
@@ -1722,21 +1720,21 @@ final class APIService
         }
 
         // Now figure out the amount of filtered entries
-        $whereClauses = array_merge($whereClauses, $this->getWhereClauses('media', $filters, $sel, $userName));
+        $whereClauses = array_merge($whereClauses, $this->getWhereClauses('media', $filters, $sel, $user));
 
         $totalSel->where(...$whereClauses);
-        $this->log->debug((string) $totalSel, ['username' => '(' . ($userName ?? 'Anonymous') . ') ']);
+        $this->log->debug((string) $totalSel, ['username' => '(' . ($user->userName ?? 'Anonymous') . ') ']);
         $filteredTotals = $totalSel->executeQuery()->fetchAssociative();
 
         $timings[] = 'db-total;dur=' . ((microtime(true) - $tStart) * 1000);
 
         $tStart = microtime(true);
-        $colMap = $this->mapColumns($mediaType, $columns, $userName);
+        $colMap = $this->mapColumns($mediaType, $columns, $user->userName);
         $sel->select(...$colMap);
         $sel->where(...$whereClauses);
 
         foreach ($subDataNeeded as $c) {
-            if ($c === 'references' && $userName !== null) {
+            if ($c === 'references' && $user !== null) {
                 $sub = $this->db->createQueryBuilder();
                 $sub->select('media_id', 'JSON_AGG(user_lists.name) as references');
                 $sub->from('user_media_list', 'umlsub');
@@ -1744,7 +1742,7 @@ final class APIService
                 $sub->innerJoin('umlsub', '"user"', '"user"', '"user".id = umlsub.user_id');
                 $sub->where(
                     $sel->expr()->eq('user_lists.is_custom_list', 'true'),
-                    $sel->expr()->eq('lower("user".user_name)', "'" . strtolower($userName) . "'"),
+                    $sel->expr()->eq('lower("user".user_name)', "'" . strtolower($user->userName) . "'"),
                 );
                 $sub->groupBy('media_id');
                 $sel->leftJoin('media', "($sub)", 'uml', 'uml.media_id = media.id');
@@ -1762,7 +1760,7 @@ final class APIService
                     ?? $criterium['column'];
 
                 // We need extra steps if we want to sort by the amount of references
-                if ($mapped === 'references' && $userName !== null) {
+                if ($mapped === 'references' && $user !== null) {
                     $sub = $this->db->createQueryBuilder();
                     $sub->select('user_media_list.media_id', 'COUNT(user_lists.name) AS amount');
                     $sub->from('user_media_list');
@@ -1775,7 +1773,7 @@ final class APIService
                     $sub->innerJoin('user_media_list', '"user"', '"user"', '"user".id = user_media_list.user_id');
                     $sub->where(
                         $sub->expr()->eq('user_lists.is_custom_list', 'true'),
-                        $sel->expr()->eq('lower("user".user_name)', "'" . strtolower($userName) . "'"),
+                        $sel->expr()->eq('lower("user".user_name)', "'" . strtolower($user->userName) . "'"),
                     );
                     $sub->groupBy('user_media_list.media_id');
                     $sel->leftJoin('media', '(' . $sub . ')', 'ref_count', 'ref_count.media_id = media.id');
@@ -1796,7 +1794,7 @@ final class APIService
         $sel->addOrderBy('media.id ASC');
 
         // Get the data for the requested page
-        $this->log->debug((string) $sel, ['username' => '(' . ($userName ?? 'Anonymous') . ') ']);
+        $this->log->debug((string) $sel, ['username' => '(' . ($user->userName ?? 'Anonymous') . ') ']);
         $results = $sel->executeQuery()->fetchAllAssociativeIndexed();
         $timings[] = 'db-page-main;dur=' . ((microtime(true) - $tStart) * 1000);
         $mediaIds = array_keys($results);
