@@ -116,6 +116,22 @@ final class APIService
         'references' => 'references',
     ];
 
+    // Contains columns that require a user to be passed with the request
+    private const USER_RELATED_COLUMNS = [
+        'references',
+        'status',
+        'progress',
+        'progressVolumes',
+        'repeat',
+        'started',
+        'completed',
+        'remaining',
+        'daysSpent',
+        'score',
+        'notes',
+        'isPrivate',
+    ];
+
     public function __construct(Connection $db, DBService $dBService, Logger $logger)
     {
         $this->db = $db;
@@ -1317,7 +1333,7 @@ final class APIService
 
         foreach ($columns as $c) {
             // Ignore unknown columns
-            if (! array_key_exists($c['name'], self::COLUMN_MAP)) {
+            if (! isset(self::COLUMN_MAP[$c['name']])) {
                 continue;
             }
 
@@ -1326,10 +1342,9 @@ final class APIService
             // The id column can't be empty because we group the results by the id in the query
             // The started and completed columns can't be empty because we need the data for the "Code" button
             if (
-                ! in_array($c['name'], ['id', 'started', 'completed'], true) && (
+                $c['name'] !== 'id' && (
                     $c['visible'] === false || (
-                        strpos(self::COLUMN_MAP[$c['name']], 'user_media') !== false &&
-                        $userName === null
+                        $userName === null && in_array($c['name'], self::USER_RELATED_COLUMNS, true)
                     )
                 )
             ) {
