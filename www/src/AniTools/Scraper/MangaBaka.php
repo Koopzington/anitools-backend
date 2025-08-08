@@ -50,7 +50,7 @@ final class MangaBaka implements ScraperInterface
         if (! file_exists(self::TMP_DIR)) {
             mkdir(self::TMP_DIR);
         }
-        
+
         $this->output->writeln('Downloading database snapshot...');
         // Download the latest snapshot
         file_put_contents(self::TMP_DIR . 'db.tgz', file_get_contents(self::DB_URL));
