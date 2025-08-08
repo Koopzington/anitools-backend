@@ -32,6 +32,10 @@ final class AniListClient
             RequestInterface $request,
             ResponseInterface $response = null
         ) use ($withTimeout): bool {
+            if ($response === null) {
+                throw new \UnexpectedValueException('The AL API returned an unexpected response');
+            }
+
             // Shortcircuit 'cause we don't actually want to wait over 2 minutes for this, even if the user wants to
             // force reload their lists
             if ($response->getStatusCode() === 429 && $retries > 3) {
@@ -64,7 +68,7 @@ final class AniListClient
                 }
             }
 
-            return $response !== null && $response->getStatusCode() === 429;
+            return $response->getStatusCode() === 429;
         };
 
         // Function determining the length of the delay
