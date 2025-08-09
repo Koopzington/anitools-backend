@@ -1705,7 +1705,12 @@ final class APIService
         // We need to make some adjustments for determining the "total entries" in case user lists are involved
         // However since the filtering theoretically allows you to create very specific conditions to the point where
         // you can't determine what "total entries" are even considered we'll only look on simple cases
-        if (isset($filters['and']['userList']['and']) && $user !== null) {
+        $hasUserListRestrictions = (
+            isset($filters['and']['userList']['and']) && \count($filters['and']['userList']['and']) > 0
+        ) || (
+            isset($filters['and']['userList']['or']) && \count($filters['and']['userList']['or']) > 0
+        );
+        if ($hasUserListRestrictions && $user !== null) {
             $totalSel->innerJoin('media', '(' . $sub . ')', 'user_media', 'media.id = user_media.media_id');
             // Add a column to get the amount of entries the user has completed
             $tCols[] = 'SUM(CASE WHEN user_media.status = \'COMPLETED\' THEN 1 ELSE 0 END) as count_completed';
@@ -1732,6 +1737,12 @@ final class APIService
             $totalVolumes = $totals['volumes'];
             $totalRuntime = $totals['runtime'];
             $totalCompleted = 0;
+        }
+
+        // Left Join user_media for the Select querying the totals in case user related filters were used
+        // and the userList filter is either empty or only contains "not"
+        if (! $hasUserListRestrictions && $user !== null) {
+            $totalSel->leftJoin('media', '(' . $sub . ')', 'user_media', 'media.id = user_media.media_id');
         }
 
         // Now figure out the amount of filtered entries
