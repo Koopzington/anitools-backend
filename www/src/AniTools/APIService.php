@@ -1684,14 +1684,14 @@ final class APIService
 
         $totalSel = clone $sel;
 
+        // Join the user_media table if a user was passed for user related filters and columns to work
         if ($user !== null) {
             $sub = $this->db->createQueryBuilder();
             $sub->select('*');
             $sub->from('user_media');
-            $sub->innerJoin('user_media', '"user"', '"user"', 'user_media.user_id = "user".id');
-            $sWhere = [$sub->expr()->eq('lower("user".user_name)', "'" . strtolower($user->userName) . "'")];
+            $sWhere = [$sub->expr()->eq('user_media.user_id', (string) $user->id)];
             // Make sure that users can only see their own private stuff
-            if ($authedUser === null || $authedUser->userName !== $user->userName) {
+            if ($authedUser === null || $authedUser->id !== $user->id) {
                 $sWhere[] = $sub->expr()->eq('is_private', 'false');
             }
             $sub->where(...$sWhere);
@@ -1754,10 +1754,9 @@ final class APIService
                 $sub->select('media_id', 'JSON_AGG(user_lists.name) as references');
                 $sub->from('user_media_list', 'umlsub');
                 $sub->innerJoin('umlsub', 'user_lists', 'user_lists', 'umlsub.list_id = user_lists.id');
-                $sub->innerJoin('umlsub', '"user"', '"user"', '"user".id = umlsub.user_id');
                 $sub->where(
-                    $sel->expr()->eq('user_lists.is_custom_list', 'true'),
-                    $sel->expr()->eq('lower("user".user_name)', "'" . strtolower($user->userName) . "'"),
+                    $sub->expr()->eq('user_lists.is_custom_list', 'true'),
+                    $sub->expr()->eq('umlsub.user_id', (string) $user->id),
                 );
                 $sub->groupBy('media_id');
                 $sel->leftJoin('media', "($sub)", 'uml', 'uml.media_id = media.id');
@@ -1785,10 +1784,9 @@ final class APIService
                         'user_lists',
                         'user_media_list.list_id = user_lists.id'
                     );
-                    $sub->innerJoin('user_media_list', '"user"', '"user"', '"user".id = user_media_list.user_id');
                     $sub->where(
                         $sub->expr()->eq('user_lists.is_custom_list', 'true'),
-                        $sel->expr()->eq('lower("user".user_name)', "'" . strtolower($user->userName) . "'"),
+                        $sub->expr()->eq('user_media_list.user_id', (string) $user->id),
                     );
                     $sub->groupBy('user_media_list.media_id');
                     $sel->leftJoin('media', '(' . $sub . ')', 'ref_count', 'ref_count.media_id = media.id');
