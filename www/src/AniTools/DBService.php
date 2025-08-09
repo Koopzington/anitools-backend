@@ -383,7 +383,7 @@ final class DBService
         $sel = $this->db->createQueryBuilder();
         $sel->select('id', 'user_name');
         $sel->from('"user"');
-        $sel->where($sel->expr()->eq('user_name', $this->db->quote($userName)));
+        $sel->where($sel->expr()->eq('lower(user_name)', $this->db->quote(strtolower($userName))));
 
         $result = $sel->executeQuery();
 
