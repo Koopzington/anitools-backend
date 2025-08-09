@@ -575,7 +575,7 @@ final class APIService
      * @param 'media' | 'staff' | 'characters' $type
      * @param array<string, mixed> $filters
      * @param QueryBuilder $qb
-     * @param string|null $userName
+     * @param User|null $user
      * @return CompositeExpression[] | string[]
      */
     public function getWhereClauses(string $type, array $filters, QueryBuilder $qb, ?User $user): array
