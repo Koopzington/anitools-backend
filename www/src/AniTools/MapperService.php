@@ -134,7 +134,7 @@ final class MapperService
         $tStart = microtime(true);
         $sel = $this->getBaseQuery($user);
 
-        $whereClauses = $this->apiService->getWhereClauses('media', $filters, $sel, $user->userName);
+        $whereClauses = $this->apiService->getWhereClauses('media', $filters, $sel, $user);
         $sel->andWhere(...$whereClauses);
 
         $sel->addOrderBy('vote_counts.already_voted', 'desc nulls last');
@@ -597,7 +597,7 @@ final class MapperService
         $timings[] = 'db-stats-2;dur=' . ((microtime(true) - $tStart) * 1000);
         $tStart = microtime(true);
 
-        $whereClauses = $this->apiService->getWhereClauses('media', $filters, $sel, $user->userName);
+        $whereClauses = $this->apiService->getWhereClauses('media', $filters, $sel, $user);
         $sel->andWhere(...$whereClauses);
 
         $this->log->debug((string) $sel, ['username' => '(' . $user->userName . ') ']);
