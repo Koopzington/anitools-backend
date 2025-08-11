@@ -1308,7 +1308,7 @@ final class APIService
      * @param list<array<string, mixed>> $columns
      * @return list<string>
      */
-    private function mapColumns(MediaType $mediaType, array $columns, ?string $userName): array
+    private function mapColumns(MediaType $mediaType, array $columns, bool $queriedWithUserName): array
     {
         $mapped = [];
         // We always need the ID (and the cover image because it isn't requested through a column)
@@ -1331,6 +1331,31 @@ final class APIService
             ];
         }
 
+        // Make sure the title, started and completed columns are always present when the challenge code column is
+        // requested
+        $cNames = array_map(function ($c) {
+            return $c['name'];
+        }, $columns);
+        $codeColumRequested = $queriedWithUserName === true && in_array('code', $cNames, true);
+        if ($codeColumRequested === true) {
+            if (! in_array('title', $cNames, true)) {
+                $mapped[] = self::COLUMN_MAP['title'] . ' AS ' . $this->db->quoteIdentifier('title');
+            }
+            if (! in_array('started', $cNames, true)) {
+                $mapped[] = self::COLUMN_MAP['started'] . ' AS ' . $this->db->quoteIdentifier('started');
+            }
+            if (! in_array('completed', $cNames, true)) {
+                $mapped[] = self::COLUMN_MAP['completed'] . ' AS ' . $this->db->quoteIdentifier('completed');
+            }
+        }
+
+        $mustBePresent = ['id'];
+        if ($codeColumRequested === true) {
+            $mustBePresent[] = 'title';
+            $mustBePresent[] = 'started';
+            $mustBePresent[] = 'completed';
+        }
+
         foreach ($columns as $c) {
             // Ignore unknown columns
             if (! isset(self::COLUMN_MAP[$c['name']])) {
@@ -1340,12 +1365,12 @@ final class APIService
             // Return an empty string if the column isn't visible. DataTables freaks out if a column isn't in the
             // response. Also return an empty string if no username was given for user_media columns
             // The id column can't be empty because we group the results by the id in the query
-            // The started and completed columns can't be empty because we need the data for the "Code" button
+            // The title, started and completed columns can't be empty when we need the data for the "Code" button
             if (
-                $c['name'] !== 'id' && (
-                    $c['visible'] === false || (
-                        $userName === null && in_array($c['name'], self::USER_RELATED_COLUMNS, true)
-                    )
+                ! in_array($c['name'], $mustBePresent, true) &&
+                (
+                    $c['visible'] === false ||
+                    $queriedWithUserName === false && in_array($c['name'], self::USER_RELATED_COLUMNS, true)
                 )
             ) {
                 $mapped[] = 'null AS ' . $this->db->quoteIdentifier($c['name']);
@@ -1420,7 +1445,7 @@ final class APIService
         $timings[] = 'db-total;dur=' . ((microtime(true) - $tStart) * 1000);
 
         $tStart = microtime(true);
-        $colMap = $this->mapColumns(MediaType::CHARACTER, $columns, $user->userName);
+        $colMap = $this->mapColumns(MediaType::CHARACTER, $columns, $user !== null);
         $sel->select(...$colMap);
         if (\count($whereClauses) > 0) {
             $sel->where(...$whereClauses);
@@ -1557,7 +1582,7 @@ final class APIService
         $timings[] = 'db-total;dur=' . ((microtime(true) - $tStart) * 1000);
 
         $tStart = microtime(true);
-        $colMap = $this->mapColumns(MediaType::STAFF, $columns, $user->userName);
+        $colMap = $this->mapColumns(MediaType::STAFF, $columns, $user !== null);
         $sel->select(...$colMap);
         if (\count($whereClauses) > 0) {
             $sel->where(...$whereClauses);
@@ -1755,7 +1780,7 @@ final class APIService
         $timings[] = 'db-total;dur=' . ((microtime(true) - $tStart) * 1000);
 
         $tStart = microtime(true);
-        $colMap = $this->mapColumns($mediaType, $columns, $user->userName);
+        $colMap = $this->mapColumns($mediaType, $columns, $user !== null);
         $sel->select(...$colMap);
         $sel->where(...$whereClauses);
 
