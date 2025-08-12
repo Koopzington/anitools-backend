@@ -31,7 +31,8 @@ final class APIService
 
     private const COLUMN_MAP = [
         'title' => 'title_romaji',
-        'titleEng' => 'COALESCE(title_english, title_romaji)',
+        'titleEng' => 'title_english',
+        'titleEngRom' => 'COALESCE(title_english, title_romaji)',
         'titleNat' => 'title_native',
         'synonyms' => 'synonyms',
         'id' => 'id',
@@ -64,6 +65,7 @@ final class APIService
         'favourites' => 'favourites',
         'hasReview' => 'reviews > 0',
         'isAdult' => 'is_adult',
+        'isLicensed' => 'is_licensed',
         'statusCurrent' => 'status_current',
         'statusPlanning' => 'status_planning',
         'statusCompleted' => 'status_completed',
