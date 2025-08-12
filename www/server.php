@@ -17,6 +17,7 @@ use AniTools\Endpoint\SearchStaff;
 use AniTools\Endpoint\Signature;
 use AniTools\Endpoint\UserLists;
 use AniTools\MapperService;
+use AniTools\UserManager;
 use AniTools\Util\ServerLog;
 use Aura\Router\RouterContainer;
 use Meilisearch\Client;
@@ -41,10 +42,10 @@ if (
 $logger = ServerLog::getInstance();
 $logger->debug("Getting DB connection");
 $conn = DBService::getDBConnection();
-$logger->debug("Instantiating DBService");
-$dbService = new AniTools\DBService($logger);
+$logger->debug("Instantiating UserManager");
+$userManager = new UserManager($conn, $logger);
 $logger->debug("Instantiating Backend");
-$backend = new AniTools\APIService($conn, $dbService, $logger);
+$backend = new AniTools\APIService($conn, $userManager, $logger);
 $logger->debug("Instantiating SVG Generator");
 $svgGenerator = new AniTools\SVGGenerator($conn, $logger);
 $logger->debug("Instantiating MapperService");
@@ -66,7 +67,7 @@ $endpoints = [
     new SearchForFilter($backend),
     new SearchStaff($backend),
     new UserLists($backend),
-    new Search($backend),
+    new Search($backend, $userManager),
 ];
 
 foreach ($endpoints as $endpoint) {

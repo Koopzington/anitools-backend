@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace AniTools\Endpoint;
 
 use AniTools\APIService;
-use AniTools\DBService;
+use AniTools\UserManager;
 use AniTools\Util\AniListOAuthChecker;
 use AniTools\Util\Filter;
 use AniTools\Util\MediaType;
@@ -17,12 +17,12 @@ use React\Http\Message\Response;
 final class Search implements EndpointInterface
 {
     private APIService $apiService;
-    private DBService $dbservice;
+    private UserManager $userManager;
 
-    public function __construct(APIService $apiService, DBService $dBService)
+    public function __construct(APIService $apiService, UserManager $userManager)
     {
         $this->apiService = $apiService;
-        $this->dbservice = $dBService;
+        $this->userManager = $userManager;
     }
 
     public function getRoute(): Route
@@ -120,7 +120,7 @@ final class Search implements EndpointInterface
         // The user should already be present in the database at this point in time
         if ($userName !== null && strlen($userName) > 0) {
             try {
-                $user = $this->dbservice->getUserByName($userName);
+                $user = $this->userManager->getUserByName($userName);
             } catch (\UnexpectedValueException $e) {
                 return new Response(
                     Response::STATUS_BAD_REQUEST,

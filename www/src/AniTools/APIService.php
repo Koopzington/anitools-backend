@@ -18,9 +18,7 @@ use Monolog\Logger;
 final class APIService
 {
     private Connection $db;
-
-    private DBService $dbService;
-
+    private UserManager $userManager;
     private Logger $log;
 
     /** @var array<string, array<string, int>> */
@@ -134,10 +132,10 @@ final class APIService
         'isPrivate',
     ];
 
-    public function __construct(Connection $db, DBService $dBService, Logger $logger)
+    public function __construct(Connection $db, UserManager $userManager, Logger $logger)
     {
         $this->db = $db;
-        $this->dbService = $dBService;
+        $this->userManager = $userManager;
         $this->log = $logger;
 
         $sel = $db->createQueryBuilder()
@@ -1272,7 +1270,7 @@ final class APIService
         $warnings = [];
 
         if (isset($response['data']['MediaListCollection'])) {
-            $this->dbService->importUser($response['data']['MediaListCollection'], $mediaType);
+            $this->userManager->importUser($response['data']['MediaListCollection'], $mediaType);
         } else {
             $warnings[] = [
                 'source' => 'AniList',
@@ -1280,7 +1278,7 @@ final class APIService
             ];
         }
 
-        $lists = $this->dbService->getUserLists($userName, $mediaType);
+        $lists = $this->userManager->getUserLists($userName, $mediaType);
 
         $output = ['data' => $lists];
 
