@@ -65,7 +65,7 @@ final class APIService
         'favourites' => 'favourites',
         'hasReview' => 'reviews > 0',
         'isAdult' => 'is_adult',
-        'isLicensed' => 'is_licensed',
+        'isDoujin' => 'is_licensed = 0',
         'statusCurrent' => 'status_current',
         'statusPlanning' => 'status_planning',
         'statusCompleted' => 'status_completed',
