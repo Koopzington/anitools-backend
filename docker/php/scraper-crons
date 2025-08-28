@@ -3,4 +3,5 @@
 php /anitools-backend/cli.php app:scrape anilist all-media-data
 php /anitools-backend/cli.php app:import anilist
 php /anitools-backend/cli.php app:import awc
-php /anitools-backend/cli.php app:import animeshon
+php /anitools-backend/cli.php app:scrape mangabaka mappings
+php /anitools-backend/cli.php app:import mangabaka
