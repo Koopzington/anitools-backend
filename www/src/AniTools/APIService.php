@@ -668,6 +668,17 @@ final class APIService
                 ));
             }
 
+            // Character/Staff hometown
+            if ($key === 'homeTownLike') {
+                $where = array_merge($where, $this->getLikeOrRegExClauses(
+                    [
+                        'home_town',
+                    ],
+                    $value,
+                    $qb
+                ));
+            }
+
             // Notes
             if ($key === 'notesLike') {
                 $where = array_merge($where, $this->getLikeOrRegExClauses(

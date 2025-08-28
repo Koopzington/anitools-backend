@@ -53,6 +53,7 @@ final class Filter
         'bloodType' => 'array_string',
         'gender' => 'array_string',
         'primaryOccupation' => 'array_string',
+        'homeTownLike' => 'string_or_regex',
         'birthdayFrom' => 'fuzzydate',
         'birthdayFromMin' => 'fuzzydate',
         'birthdayFromMax' => 'fuzzydate',
