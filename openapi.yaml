@@ -16,8 +16,6 @@ servers:
 tags:
   - name: BetterList
     description: Endpoints relevant for the use of BetterList
-  - name: Mapper
-    description: Endpoints relevant for the use of the Mapper
   - name: Misc
     description: Other endpoints
 paths:

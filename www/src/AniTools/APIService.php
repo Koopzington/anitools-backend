@@ -1071,10 +1071,6 @@ final class APIService
     {
         $filterValues = [];
 
-        if ($mediaType === 'MAPPER') {
-            $mediaType = 'MANGA';
-        }
-
         if (! in_array($mediaType, ['ANIME', 'MANGA', 'CHARACTER', 'STAFF'], true)) {
             return [];
         }

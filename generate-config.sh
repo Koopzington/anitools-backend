@@ -22,8 +22,6 @@ DB_DATABASE=anitools
 
 DB_PASSWORD=$(LC_ALL=C </dev/urandom tr -dc A-Za-z0-9 | head -c 28)
 
-MEILI_MASTERKEY=$(LC_ALL=C </dev/urandom tr -dc A-Za-z0-9 | head -c 28)
-
 EOF
 
 chmod 600 .env

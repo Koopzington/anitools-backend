@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace AniTools\Scraper;
 
-use AniTools\MapperService;
 use AniTools\Util\MangaUpdatesClient;
 use GuzzleHttp\Exception\RequestException;
 use RuntimeException;
@@ -308,24 +307,6 @@ final class MangaUpdates implements ScraperInterface
                 return Command::FAILURE;
             }
             $this->data = json_decode($content, true);
-        }
-
-        // Load and merge AniTools\MapperService::MANUAL_MANGAUPDATES_IMPORTS_FILE into main file if it exists
-        if (file_exists(MapperService::MANUAL_MANGAUPDATES_IMPORTS_FILE)) {
-            $this->output->writeln('Found manual imports. Merging them into the main file.');
-            $content = file_get_contents(MapperService::MANUAL_MANGAUPDATES_IMPORTS_FILE);
-            if ($content === false) {
-                $this->output->writeln(
-                    'The file "' . MapperService::MANUAL_MANGAUPDATES_IMPORTS_FILE . '" exists but couldn\'t be read.'
-                );
-                return Command::FAILURE;
-            }
-            $data = json_decode($content, true);
-            foreach ($data as $id => $d) {
-                $this->data[$id] = $d;
-            }
-            // Delete file when finished
-            unlink(MapperService::MANUAL_MANGAUPDATES_IMPORTS_FILE);
         }
 
         // Contains all IDs that have a later timestamp than what our database reports,

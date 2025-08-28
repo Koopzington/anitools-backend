@@ -16,7 +16,6 @@ $cliApplication = new Application('AWC Tools Backend');
 $commands = [
     Command\Scrape::class,
     Command\Import::class,
-    Command\MeiliManager::class,
 ];
 foreach ($commands as $command) {
     $cliApplication->add(new $command());

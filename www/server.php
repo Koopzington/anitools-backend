@@ -5,22 +5,14 @@ declare(strict_types=1);
 use AniTools\DBService;
 use AniTools\Endpoint\EndpointInterface;
 use AniTools\Endpoint\FilterValues;
-use AniTools\Endpoint\Mapper\CreateMapping;
-use AniTools\Endpoint\Mapper\GetMangaUpdatesInfo;
-use AniTools\Endpoint\Mapper\GetSuggestion;
-use AniTools\Endpoint\Mapper\GetUserVotes;
-use AniTools\Endpoint\Mapper\NoneFound;
-use AniTools\Endpoint\Mapper\RevokeVote;
 use AniTools\Endpoint\Search;
 use AniTools\Endpoint\SearchForFilter;
 use AniTools\Endpoint\SearchStaff;
 use AniTools\Endpoint\Signature;
 use AniTools\Endpoint\UserLists;
-use AniTools\MapperService;
 use AniTools\UserManager;
 use AniTools\Util\ServerLog;
 use Aura\Router\RouterContainer;
-use Meilisearch\Client;
 use React\Http\Message\Response;
 
 use function React\Async\async;
@@ -31,8 +23,7 @@ include 'vendor/autoload.php';
 if (
     ! (getenv('DB_USER') &&
     getenv('DB_DATABASE') &&
-    getenv('DB_PASSWORD') &&
-    getenv('MEILI_MASTERKEY')
+    getenv('DB_PASSWORD')
     )
 ) {
     echo 'It seems that this server was started before an .env file was generated.';
@@ -48,20 +39,11 @@ $logger->debug("Instantiating Backend");
 $backend = new AniTools\APIService($conn, $userManager, $logger);
 $logger->debug("Instantiating SVG Generator");
 $svgGenerator = new AniTools\SVGGenerator($conn, $logger);
-$logger->debug("Instantiating MapperService");
-$meili = new Client('http://meilisearch:7700', getenv('MEILI_MASTERKEY'));
-$mapperService = new MapperService($conn, $logger, $meili, $backend);
 
 $router = new RouterContainer();
 $map = $router->getMap();
 
 $endpoints = [
-    new GetSuggestion($mapperService),
-    new GetMangaUpdatesInfo($mapperService),
-    new CreateMapping($mapperService),
-    new NoneFound($mapperService),
-    new GetUserVotes($mapperService),
-    new RevokeVote($mapperService),
     new Signature($svgGenerator),
     new FilterValues($backend),
     new SearchForFilter($backend),

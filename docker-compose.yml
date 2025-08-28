@@ -11,7 +11,6 @@ services:
       - DB_USER=${DB_USER}
       - DB_DATABASE=${DB_DATABASE}
       - DB_PASSWORD=${DB_PASSWORD}
-      - MEILI_MASTERKEY=${MEILI_MASTERKEY}
     depends_on:
       - postgres
     restart: always
@@ -29,7 +28,6 @@ services:
       - DB_USER=${DB_USER}
       - DB_DATABASE=${DB_DATABASE}
       - DB_PASSWORD=${DB_PASSWORD}
-      - MEILI_MASTERKEY=${MEILI_MASTERKEY}
     depends_on:
       - postgres
     restart: always
@@ -43,13 +41,3 @@ services:
       - POSTGRES_DB=${DB_DATABASE}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     restart: always
-  meilisearch:
-    image: getmeili/meilisearch:v1.7
-    restart: always
-    ports:
-      - "0.0.0.0:7700:7700"
-    volumes:
-      - ./meilisearch:/meili_data
-    environment:
-      - MEILI_MASTERKEY=${MEILI_MASTERKEY}
-    command: /bin/meilisearch --no-analytics --master-key ${MEILI_MASTERKEY}
