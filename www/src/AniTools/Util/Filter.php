@@ -54,6 +54,7 @@ final class Filter
         'gender' => 'array_string',
         'primaryOccupation' => 'array_string',
         'homeTownLike' => 'string_or_regex',
+        'voiceActorLang' => 'array_string',
         'birthdayFrom' => 'fuzzydate',
         'birthdayFromMin' => 'fuzzydate',
         'birthdayFromMax' => 'fuzzydate',

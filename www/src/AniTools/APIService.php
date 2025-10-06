@@ -95,6 +95,8 @@ final class APIService
             . ' LPAD(date_of_death_m::VARCHAR, 2, \'0\'), LPAD(date_of_death_d::VARCHAR, 2, \'0\'))',
         'bloodType' => 'blood_type',
         'homeTown' => 'home_town',
+        'dubLanguages' => 'dub_langs.langs',
+        'dubLanguageCount' => 'jsonb_array_length(dub_langs.langs)',
         'primaryOccupations' => 'primary_occupations',
         'age' => 'age',
         'yearsActiveFrom' => 'years_active_from',
@@ -622,6 +624,22 @@ final class APIService
                 $where = array_merge($where, $this->getJsonbSubClausesFor($valueCols[$key], '$[*]', $value));
             }
 
+            if ($key === 'voiceActorLang') {
+                $sub = $this->db->createQueryBuilder();
+
+                $col = match ($type) {
+                    'staff' => 'voice_actor_id',
+                    'characters' => 'character_id',
+                    'media' => 'media_id',
+                };
+
+                $sub->select($col);
+                $sub->from('media_characters');
+                $sub->where(... $this->getDirectSubClausesFor($sub, 'voice_actor_lang', $value));
+
+                $where[] = $type . '.id in (' . $sub . ')';
+            }
+
             // Supports airingStart, airingStartMin and airingStartMax
             if (
                 isset(self::FUZZYDATE_MAP[$key])
@@ -1096,6 +1114,15 @@ final class APIService
             return $i['value'];
         };
 
+        // The language filter is available for anime, character and staff, we don't need them for manga though
+        $tStart = microtime(true);
+        $query = 'SELECT DISTINCT voice_actor_lang AS value'
+            . ' FROM media_characters ORDER BY value ASC';
+        $this->log->debug($query);
+        $results = $this->db->executeQuery($query)->fetchAllAssociative();
+        $filterValues['voice_actor_lang'] = array_filter(array_map($f, $results));
+        $this->log->debug(((microtime(true) - $tStart) * 1000) . 'ms');
+
         if (in_array($mediaType, ['ANIME', 'MANGA'], true)) {
             $qb = $this->db->createQueryBuilder();
             $qb->from('media');
@@ -1412,6 +1439,30 @@ final class APIService
         return $mapped;
     }
 
+    /** Contains names of columns which need additional data joined in the query */
+    private const COLUMNS_REQUIRING_JOINS = [
+        'references',
+        'appearances',
+        'dubLanguages',
+        'dubLanguageCount',
+    ];
+
+    /** Contains names of columns which's data need to be json_decode()d before being returned */
+    private const COLUMNS_REQUIRING_DECODING = [
+        'genres',
+        'tags',
+        'studios',
+        'producers',
+        'externalLinks',
+        'references',
+        'synonyms',
+        'dubLanguages',
+        'appearances',
+        'primaryOccupations',
+        'nameAlternatives',
+        'nameAlternativesSpoiler',
+    ];
+
     /**
      * @param array<string, mixed> $filters
      * @param list<array<string, mixed>> $columns
@@ -1427,16 +1478,15 @@ final class APIService
         ?User $user,
     ) {
         $timings = [];
-        // If the following columns are being queried, they need to get returned as subarrays
-        $requireSubData = [
-            'appearances',
-            'nameAlternatives',
-            'nameAlternativesSpoiler',
-        ];
-        $subDataNeeded = [];
+
+        $requiresDecode = [];
+        $requiresJoins = [];
         foreach ($columns as $c) {
-            if (in_array($c['name'], $requireSubData, true) && $c['visible'] === true) {
-                $subDataNeeded[] = $c['name'];
+            if (in_array($c['name'], self::COLUMNS_REQUIRING_DECODING, true) && $c['visible'] === true) {
+                $requiresDecode[] = $c['name'];
+            }
+            if (in_array($c['name'], self::COLUMNS_REQUIRING_JOINS, true) && $c['visible'] === true) {
+                $requiresJoins[] = $c['name'];
             }
         }
 
@@ -1471,7 +1521,8 @@ final class APIService
             $sel->where(...$whereClauses);
         }
 
-        foreach ($subDataNeeded as $c) {
+        $dubJoined = false;
+        foreach ($requiresJoins as $c) {
             if ($c === 'appearances') {
                 $sub = $this->db->createQueryBuilder();
                 $sub->select('media_characters.character_id', 'COUNT(DISTINCT media_characters.media_id) AS amount');
@@ -1483,6 +1534,15 @@ final class APIService
                     'appearances',
                     'appearances.character_id = characters.id'
                 );
+            }
+
+            if (($c === 'dubLanguages' || $c === 'dubLanguageCount') && $dubJoined === false) {
+                $sub = $this->db->createQueryBuilder();
+                $sub->select('character_id', 'jsonb_agg(DISTINCT voice_actor_lang) filter (where voice_actor_lang is not null) as langs');
+                $sub->from('media_characters');
+                $sub->groupBy('media_characters.character_id');
+                $sel->leftJoin('characters', '(' . $sub . ')', 'dub_langs', 'dub_langs.character_id = characters.id');
+                $dubJoined = true;
             }
         }
 
@@ -1498,7 +1558,7 @@ final class APIService
 
                 // TODO: maybe split into manga and anime?
                 // We need extra steps if we want to sort by the amount of appearances
-                if ($mapped === 'appearances' && $user !== null) {
+                if ($mapped === 'appearances') {
                     $mapped = 'appearances.amount';
                 }
 
@@ -1526,9 +1586,9 @@ final class APIService
             $results[$id]['rowNum'] = ++$rowNum;
         }
 
-        if (\count($subDataNeeded) > 0 && \count($ids) > 0) {
+        if (\count($requiresDecode) > 0 && \count($ids) > 0) {
             $tStart = microtime(true);
-            foreach ($subDataNeeded as $key) {
+            foreach ($requiresDecode as $key) {
                 foreach ($results as $id => $r) {
                     if (is_string($r[$key])) {
                         $results[$id][$key] = json_decode($r[$key], true);
@@ -1564,16 +1624,14 @@ final class APIService
         ?User $user,
     ) {
         $timings = [];
-        // If the following columns are being queried, they need to get returned as subarrays
-        $requireSubData = [
-            'primaryOccupations',
-            'appearances',
-            'nameAlternatives',
-        ];
-        $subDataNeeded = [];
+        $requiresDecode = [];
+        $requiresJoins = [];
         foreach ($columns as $c) {
-            if (in_array($c['name'], $requireSubData, true) && $c['visible'] === true) {
-                $subDataNeeded[] = $c['name'];
+            if (in_array($c['name'], self::COLUMNS_REQUIRING_DECODING, true) && $c['visible'] === true) {
+                $requiresDecode[] = $c['name'];
+            }
+            if (in_array($c['name'], self::COLUMNS_REQUIRING_JOINS, true) && $c['visible'] === true) {
+                $requiresJoins[] = $c['name'];
             }
         }
 
@@ -1593,9 +1651,6 @@ final class APIService
         // Now figure out the amount of filtered entries
         $whereClauses = $this->getWhereClauses('staff', $filters, $sel, $user);
 
-        if (\count($whereClauses) > 0) {
-            $totalSel->where(...$whereClauses);
-        }
         $this->log->debug((string) $totalSel, ['username' => '(' . ($user->userName ?? 'Anonymous') . ') ']);
         $filteredTotals = $totalSel->executeQuery()->fetchAssociative();
 
@@ -1608,13 +1663,23 @@ final class APIService
             $sel->where(...$whereClauses);
         }
 
-        foreach ($subDataNeeded as $c) {
+        $dubJoined = false;
+        foreach ($requiresJoins as $c) {
             if ($c === 'appearances') {
                 $sub = $this->db->createQueryBuilder();
                 $sub->select('media_staff.staff_id', 'COUNT(DISTINCT media_staff.media_id) AS amount');
                 $sub->from('media_staff');
                 $sub->groupBy('media_staff.staff_id');
                 $sel->leftJoin('staff', '(' . $sub . ')', 'appearances', 'appearances.staff_id = staff.id');
+            }
+
+            if (($c === 'dubLanguages' || $c === 'dubLanguageCount') && $dubJoined === false) {
+                $sub = $this->db->createQueryBuilder();
+                $sub->select('voice_actor_id', 'jsonb_agg(DISTINCT voice_actor_lang) filter (where voice_actor_lang is not null) as langs');
+                $sub->from('media_characters');
+                $sub->groupBy('media_characters.voice_actor_id');
+                $sel->leftJoin('staff', '(' . $sub . ')', 'dub_langs', 'dub_langs.voice_actor_id = staff.id');
+                $dubJoined = true;
             }
         }
 
@@ -1658,9 +1723,9 @@ final class APIService
             $results[$id]['rowNum'] = ++$rowNum;
         }
 
-        if (\count($subDataNeeded) > 0 && \count($ids) > 0) {
+        if (\count($requiresDecode) > 0 && \count($ids) > 0) {
             $tStart = microtime(true);
-            foreach ($subDataNeeded as $key) {
+            foreach ($requiresDecode as $key) {
                 foreach ($results as $id => $r) {
                     if (is_string($r[$key])) {
                         $results[$id][$key] = json_decode($r[$key], true);
@@ -1698,20 +1763,14 @@ final class APIService
         ?User $authedUser,
     ): array {
         $timings = [];
-        // If the following columns are being queried, they need to get returned as subarrays
-        $requireSubData = [
-            'genres',
-            'tags',
-            'studios',
-            'producers',
-            'externalLinks',
-            'references',
-            'synonyms',
-        ];
-        $subDataNeeded = [];
+        $requiresDecode = [];
+        $requiresJoins = [];
         foreach ($columns as $c) {
-            if (in_array($c['name'], $requireSubData, true) && $c['visible'] === true) {
-                $subDataNeeded[] = $c['name'];
+            if (in_array($c['name'], self::COLUMNS_REQUIRING_DECODING, true) && $c['visible'] === true) {
+                $requiresDecode[] = $c['name'];
+            }
+            if (in_array($c['name'], self::COLUMNS_REQUIRING_JOINS, true) && $c['visible'] === true) {
+                $requiresJoins[] = $c['name'];
             }
         }
 
@@ -1726,6 +1785,19 @@ final class APIService
         ];
         $sel->select(...$tCols);
         $sel->from('media');
+
+        // Here we join extra tables if they need to be present in the query for the totals as well as the actual query
+        $dubJoined = false;
+        foreach ($requiresJoins as $c) {
+            if (($c === 'dubLanguages' || $c === 'dubLanguageCount') && $dubJoined === false) {
+                $sub = $this->db->createQueryBuilder();
+                $sub->select('media_id', 'jsonb_agg(DISTINCT voice_actor_lang) filter (where voice_actor_lang is not null) as langs');
+                $sub->from('media_characters');
+                $sub->groupBy('media_characters.media_id');
+                $sel->leftJoin('media', '(' . $sub . ')', 'dub_langs', 'dub_langs.media_id = media.id');
+                $dubJoined = true;
+            }
+        }
 
         $totalSel = clone $sel;
 
@@ -1804,7 +1876,8 @@ final class APIService
         $sel->select(...$colMap);
         $sel->where(...$whereClauses);
 
-        foreach ($subDataNeeded as $c) {
+        // Here we join tables that are only relevant for the main query, not the one getting the totals
+        foreach ($requiresJoins as $c) {
             if ($c === 'references' && $user !== null) {
                 $sub = $this->db->createQueryBuilder();
                 $sub->select('media_id', 'JSON_AGG(user_lists.name) as references');
@@ -1873,9 +1946,9 @@ final class APIService
             $results[$id]['rowNum'] = ++$rowNum;
         }
 
-        if (\count($subDataNeeded) > 0 && \count($mediaIds) > 0) {
+        if (\count($requiresDecode) > 0 && \count($mediaIds) > 0) {
             $tStart = microtime(true);
-            foreach ($subDataNeeded as $key) {
+            foreach ($requiresDecode as $key) {
                 foreach ($results as $id => $r) {
                     if (is_string($r[$key])) {
                         $results[$id][$key] = json_decode($r[$key], true);
