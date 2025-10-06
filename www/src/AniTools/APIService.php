@@ -265,18 +265,31 @@ final class APIService
     {
         $where = [];
 
-        if (array_key_exists('or', $values)) {
+        $hasOr = isset($values['or']);
+        $hasAnd = isset($values['and']);
+        $hasNot = isset($values['not']);
+
+        if ($hasOr === true) {
             $where[] = $qb->expr()->in($field, array_map([$qb->expr(), 'literal'], $values['or']));
         }
 
-        if (array_key_exists('and', $values)) {
+        if ($hasAnd === true) {
             foreach ($values['and'] as $v) {
                 $where[] = $qb->expr()->eq($field, $qb->expr()->literal((string) $v));
             }
         }
 
-        if (array_key_exists('not', $values)) {
-            $where[] = $qb->expr()->notIn($field, array_map([$qb->expr(), 'literal'], $values['not']));
+        if ($hasNot === true) {
+            $not = $qb->expr()->notIn($field, array_map([$qb->expr(), 'literal'], $values['not']));
+            // If the filter contains only excluded values also allow nulls
+            if ($hasOr === false && $hasAnd === false) {
+                $where[] = $qb->expr()->or(
+                    $not,
+                    $qb->expr()->isNull($field),
+                );
+            } else {
+                $where[] = $not;
+            }
         }
 
         return $where;
