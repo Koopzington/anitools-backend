@@ -228,21 +228,21 @@ final class APIService
      * @param array<string, mixed[]> $values
      * @return string[]
      */
-    private function getSubClausesFor(QueryBuilder $qb, string $field, array $values): array
+    private function getSubClausesFor(QueryBuilder $qb, string $type, string $field, array $values): array
     {
         $where = [];
 
         if (array_key_exists('or', $values)) {
             $clone = clone $qb;
             $clone->andWhere($clone->expr()->in($field, array_map([$clone->expr(), 'literal'], $values['or'])));
-            $where[] = "media.id in ($clone)";
+            $where[] = $type . ".id in ($clone)";
         }
 
         if (array_key_exists('and', $values)) {
             foreach ($values['and'] as $v) {
                 $clone = clone $qb;
                 $clone->andWhere($clone->expr()->eq($field, $clone->expr()->literal((string) $v)));
-                $where[] = "media.id in ($clone)";
+                $where[] = $type . ".id in ($clone)";
             }
         }
 
@@ -250,7 +250,7 @@ final class APIService
             foreach ($values['not'] as $v) {
                 $clone = clone $qb;
                 $clone->andWhere($clone->expr()->eq($field, $clone->expr()->literal((string) $v)));
-                $where[] = "media.id not in ($clone)";
+                $where[] = $type . ".id not in ($clone)";
             }
         }
 
@@ -893,7 +893,7 @@ final class APIService
                 $sub->select('media_id');
                 $sub->from('media_characters');
 
-                $where = array_merge($where, $this->getSubClausesFor($sub, 'media_characters.voice_actor_id', $value));
+                $where = array_merge($where, $this->getSubClausesFor($sub, $type, 'media_characters.voice_actor_id', $value));
             }
 
             if ($key === 'staff') {
@@ -901,7 +901,7 @@ final class APIService
                 $sub->select('media_id');
                 $sub->from('media_staff');
 
-                $where = array_merge($where, $this->getSubClausesFor($sub, 'media_staff.staff_id', $value));
+                $where = array_merge($where, $this->getSubClausesFor($sub, $type, 'media_staff.staff_id', $value));
             }
 
             if ($key === 'tag') {
@@ -918,7 +918,7 @@ final class APIService
 
                 $where = array_merge(
                     $where,
-                    $this->getSubClausesFor($sub, 'awc_community_lists.community_list', $value)
+                    $this->getSubClausesFor($sub, $type, 'awc_community_lists.community_list', $value)
                 );
             }
 
@@ -935,7 +935,7 @@ final class APIService
 
                 $where = array_merge(
                     $where,
-                    $this->getSubClausesFor($sub, 'cl.community_list', $value)
+                    $this->getSubClausesFor($sub, $type, 'cl.community_list', $value)
                 );
             }
 
@@ -972,7 +972,7 @@ final class APIService
                     'mei',
                     'mei.service = \'MangaUpdates\' and cast(mei.external_id as bigint) = mangaupdates.id'
                 );
-                $where = array_merge($where, $this->getSubClausesFor($sub, 'publisher_name', $value));
+                $where = array_merge($where, $this->getSubClausesFor($sub, $type, 'publisher_name', $value));
             }
 
             if ($key === 'muPublication') {
@@ -994,7 +994,7 @@ final class APIService
                 foreach ($value as $andOrNot => $v) {
                     $value[$andOrNot] = array_map('strtolower', $v);
                 }
-                $where = array_merge($where, $this->getSubClausesFor($sub, 'lower(publication_name)', $value));
+                $where = array_merge($where, $this->getSubClausesFor($sub, $type, 'lower(publication_name)', $value));
             }
 
             // User List
@@ -1052,7 +1052,7 @@ final class APIService
                     }
                 }
 
-                $where = array_merge($where, $this->getSubClausesFor($customSub, 'ul.slug', $customLists));
+                $where = array_merge($where, $this->getSubClausesFor($customSub, $type, 'ul.slug', $customLists));
 
                 if (isset($allLists['and'])) {
                     foreach ($allLists['and'] as $s) {
