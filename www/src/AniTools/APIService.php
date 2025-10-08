@@ -1389,13 +1389,13 @@ final class APIService
         $codeColumRequested = $queriedWithUserName === true && in_array('code', $cNames, true);
         if ($codeColumRequested === true) {
             if (! in_array('title', $cNames, true)) {
-                $mapped[] = self::COLUMN_MAP['title'] . ' AS ' . $this->db->quoteIdentifier('title');
+                $mapped[] = self::COLUMN_MAP['title'] . ' AS ' . $this->db->quoteSingleIdentifier('title');
             }
             if (! in_array('started', $cNames, true)) {
-                $mapped[] = self::COLUMN_MAP['started'] . ' AS ' . $this->db->quoteIdentifier('started');
+                $mapped[] = self::COLUMN_MAP['started'] . ' AS ' . $this->db->quoteSingleIdentifier('started');
             }
             if (! in_array('completed', $cNames, true)) {
-                $mapped[] = self::COLUMN_MAP['completed'] . ' AS ' . $this->db->quoteIdentifier('completed');
+                $mapped[] = self::COLUMN_MAP['completed'] . ' AS ' . $this->db->quoteSingleIdentifier('completed');
             }
         }
 
@@ -1423,7 +1423,7 @@ final class APIService
                     $queriedWithUserName === false && in_array($c['name'], self::USER_RELATED_COLUMNS, true)
                 )
             ) {
-                $mapped[] = 'null AS ' . $this->db->quoteIdentifier($c['name']);
+                $mapped[] = 'null AS ' . $this->db->quoteSingleIdentifier($c['name']);
             } else {
                 if ($c['name'] === 'id') {
                     $mapped[] = match ($mediaType) {
@@ -1431,9 +1431,9 @@ final class APIService
                         MediaType::MANGA => 'media.id',
                         MediaType::CHARACTER => 'characters.id',
                         MediaType::STAFF => 'staff.id',
-                    } . ' AS ' . $this->db->quoteIdentifier($c['name']);
+                    } . ' AS ' . $this->db->quoteSingleIdentifier($c['name']);
                 } else {
-                    $mapped[] = self::COLUMN_MAP[$c['name']] . ' AS ' . $this->db->quoteIdentifier($c['name']);
+                    $mapped[] = self::COLUMN_MAP[$c['name']] . ' AS ' . $this->db->quoteSingleIdentifier($c['name']);
                 }
             }
         }

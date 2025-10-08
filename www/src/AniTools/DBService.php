@@ -99,7 +99,7 @@ final class DBService
                     self::$schemaManager = self::getDBConnection()->createSchemaManager();
                 }
                 $tableSchema = self::$schemaManager->introspectTable('media');
-                $pkCols = $tableSchema->getPrimaryKey()->getColumns();
+                $pkCols = $tableSchema->getPrimaryKeyConstraint()->getColumnNames();
                 self::$schemaCache[$table] = $pkCols;
             }
 

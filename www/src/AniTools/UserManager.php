@@ -266,7 +266,7 @@ final class UserManager
                     'progress' => $media['progress'],
                     'progress_volumes' => $media['progressVolumes'] ?? 0,
                     'score' => $media['score'],
-                    $this->db->quoteIdentifier('repeat') => $media['repeat'],
+                    'repeat' => $media['repeat'],
                     'started_at' => $startedAt,
                     'completed_at' => $completedAt,
                     'hidden_from_status_lists' => $media['hiddenFromStatusLists'] ? 'true' : 'false',
@@ -326,7 +326,7 @@ final class UserManager
     public function getUserById(int $id): User
     {
         $sel = $this->db->createQueryBuilder();
-        $sel->select($this->db->quoteIdentifier('user.id'), 'user_name');
+        $sel->select('user.id', 'user_name');
         $sel->from('"user"');
         $sel->where($sel->expr()->eq('id', (string) $id));
 
@@ -402,14 +402,14 @@ final class UserManager
         $this->selectUserLists = $sel;
 
         $sel = $this->db->createQueryBuilder();
-        $sel->select($this->db->quoteIdentifier('user_media.status'), 'COUNT(media_id) AS amount');
+        $sel->select('user_media.status', 'COUNT(media_id) AS amount');
         $sel->from('user_media');
         $sel->join('user_media', 'media', 'media', 'media.id =  user_media.media_id');
         $sel->where(
             $sel->expr()->eq('user_media.user_id', ':user_id'),
             $sel->expr()->eq('media.media_type', ':media_type'),
         );
-        $sel->groupBy($this->db->quoteIdentifier('user_media.status'));
+        $sel->groupBy('user_media.status');
         $this->selectUserStatusDistribution = $sel;
     }
 }
