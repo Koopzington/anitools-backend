@@ -911,7 +911,10 @@ final class APIService
                 $sub->select('media_id');
                 $sub->from('media_characters');
 
-                $where = array_merge($where, $this->getSubClausesFor($sub, $type, 'media_characters.voice_actor_id', $value));
+                $where = array_merge(
+                    $where,
+                    $this->getSubClausesFor($sub, $type, 'media_characters.voice_actor_id', $value)
+                );
             }
 
             if ($key === 'staff') {
@@ -1538,7 +1541,10 @@ final class APIService
 
             if (($c === 'dubLanguages' || $c === 'dubLanguageCount') && $dubJoined === false) {
                 $sub = $this->db->createQueryBuilder();
-                $sub->select('character_id', 'jsonb_agg(DISTINCT voice_actor_lang) filter (where voice_actor_lang is not null) as langs');
+                $sub->select(
+                    'character_id',
+                    'jsonb_agg(DISTINCT voice_actor_lang) filter (where voice_actor_lang is not null) as langs'
+                );
                 $sub->from('media_characters');
                 $sub->groupBy('media_characters.character_id');
                 $sel->leftJoin('characters', '(' . $sub . ')', 'dub_langs', 'dub_langs.character_id = characters.id');
@@ -1675,7 +1681,10 @@ final class APIService
 
             if (($c === 'dubLanguages' || $c === 'dubLanguageCount') && $dubJoined === false) {
                 $sub = $this->db->createQueryBuilder();
-                $sub->select('voice_actor_id', 'jsonb_agg(DISTINCT voice_actor_lang) filter (where voice_actor_lang is not null) as langs');
+                $sub->select(
+                    'voice_actor_id',
+                    'jsonb_agg(DISTINCT voice_actor_lang) filter (where voice_actor_lang is not null) as langs'
+                );
                 $sub->from('media_characters');
                 $sub->groupBy('media_characters.voice_actor_id');
                 $sel->leftJoin('staff', '(' . $sub . ')', 'dub_langs', 'dub_langs.voice_actor_id = staff.id');
@@ -1791,7 +1800,10 @@ final class APIService
         foreach ($requiresJoins as $c) {
             if (($c === 'dubLanguages' || $c === 'dubLanguageCount') && $dubJoined === false) {
                 $sub = $this->db->createQueryBuilder();
-                $sub->select('media_id', 'jsonb_agg(DISTINCT voice_actor_lang) filter (where voice_actor_lang is not null) as langs');
+                $sub->select(
+                    'media_id',
+                    'jsonb_agg(DISTINCT voice_actor_lang) filter (where voice_actor_lang is not null) as langs'
+                );
                 $sub->from('media_characters');
                 $sub->groupBy('media_characters.media_id');
                 $sel->leftJoin('media', '(' . $sub . ')', 'dub_langs', 'dub_langs.media_id = media.id');
@@ -1801,6 +1813,9 @@ final class APIService
 
         $totalSel = clone $sel;
 
+        // The next line only exists to make phpstan stop saying the variable might not be defined even though it's
+        // technically impossible because both parts that use the variable check for the same condition
+        $sub = null;
         // Join the user_media table if a user was passed for user related filters and columns to work
         if ($user !== null) {
             $sub = $this->db->createQueryBuilder();
