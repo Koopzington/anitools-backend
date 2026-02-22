@@ -655,9 +655,28 @@ final class Importer
         }
 
         $data = json_decode(file_get_contents($file), true);
+        
+        // Query the database for all media IDs from the lists to  make sure they exist
+        $allMediaIds = [];
+        foreach ($data as $list => $entries) {
+            foreach ($entries as $entry) {
+                $allMediaIds[$entry] = $entry;
+            }
+        }
+        $sel = $this->db->createQueryBuilder();
+        $sel->select('id');
+        $sel->from('media');
+        $sel->where($sel->expr()->in('id', $allMediaIds));
+        $existingIDs = array_keys($sel->executeQuery()->fetchAllAssociativeIndexed());
+
         $insValues = [];
         foreach ($data as $list => $entries) {
             foreach ($entries as $entry) {
+                // Skip if the media ID doesn't exist
+                if (! in_array($entry, $existingIDs)) {
+                    continue;
+                }
+
                 $insValues[] = [
                     'media_id' => $entry,
                     'community_list' => $list,
