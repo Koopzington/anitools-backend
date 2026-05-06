@@ -770,6 +770,19 @@ final class APIService
                     $qb->expr()->isNull('total_duration'),
                 );
             }
+            // Minimum duration
+            if ($key === 'durationMin' && $value !== 0) {
+                $where[] = $qb->expr()->gte('duration', (string) $value);
+            }
+            // Maximum duration
+            if ($key === 'durationMax' && $value !== 0) {
+                // The db doesn't consider null = 0 so we gotta include the null values
+                // If minimum duration > 0 the null values will get filtered out again
+                $where[] = $qb->expr()->or(
+                    $qb->expr()->lte('duration', (string) $value),
+                    $qb->expr()->isNull('duration'),
+                );
+            }
             // Minimum Mean Score
             if ($key === 'meanScoreMin' && $value !== 0) {
                 $where[] = $qb->expr()->gte('mean_score', (string) $value);
@@ -1175,6 +1188,13 @@ final class APIService
                 $this->log->debug((string) $qb);
                 $results = $qb->executeQuery()->fetchAllAssociative();
                 $filterValues['total_runtime'] = array_values(array_filter(array_map($f, $results)));
+                $this->log->debug(((microtime(true) - $tStart) * 1000) . 'ms');
+
+                $tStart = microtime(true);
+                $qb->select('DISTINCT(media.duration) AS value');
+                $this->log->debug((string) $qb);
+                $results = $qb->executeQuery()->fetchAllAssociative();
+                $filterValues['duration'] = array_values(array_filter(array_map($f, $results)));
                 $this->log->debug(((microtime(true) - $tStart) * 1000) . 'ms');
             }
 

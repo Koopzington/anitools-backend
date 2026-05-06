@@ -24,6 +24,8 @@ final class Filter
         'volumesMax' => 'int',
         'totalRuntimeMin' => 'int',
         'totalRuntimeMax' => 'int',
+        'durationMin' => 'int',
+        'durationMax' => 'int',
         'showAdult' => 'bool',
         'hasReview' => 'bool',
         'format' => 'array_string',
