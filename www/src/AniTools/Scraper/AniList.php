@@ -200,7 +200,7 @@ final class AniList implements ScraperInterface
                         node {
                             id
                         }
-                        relationType (version: 2)
+                        relationType (version: 3)
                     }
                 }
             }
