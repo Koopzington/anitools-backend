@@ -26,6 +26,7 @@ final class APIService
 
     /** @var array<string, array<string, mixed[]>> */
     private array $filterValueCache = [];
+    private int $filterValueCacheAge = 0;
 
     private const COLUMN_MAP = [
         'title' => 'title_romaji',
@@ -1122,7 +1123,14 @@ final class APIService
             return [];
         }
 
-        if (array_key_exists($mediaType, $this->filterValueCache)) {
+        // Check if the cache is older than 24 hours. If yes, invalidate
+        if ($this->filterValueCacheAge < (time() - 24 * 60 * 60)) {
+            $this->log->debug('Invalidating filter value cache');
+            $this->filterValueCache = [];
+            $this->filterValueCacheAge = time();
+        }
+
+        if (isset($this->filterValueCache[$mediaType])) {
             return $this->filterValueCache[$mediaType];
         }
 
