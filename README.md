@@ -14,13 +14,6 @@ It also provides very limited filtering options for a user's own list. In additi
 
 ## What endpoints does the API provide and how to use them?
 
-- `/signature?user_name={AniList username}&bg_color={hex color code w/o hash}&text_color={hex color code w/o hash}`
-
-    You might have seen a few profiles on AniList with a picture that shows their Rank on the AWC Leaderboard including their points.
-
-    ![Signature.png](https://i.imgur.com/1hARb0z.png)
-    The `bg_color` and `text_color` parameters are optional.
-
 - `/filterValues?media_type={ANIME/MANGA}`
 
     Returns the possible values for all available filters which don't have a ton of values for the provided media type.
