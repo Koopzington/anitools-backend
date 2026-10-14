@@ -10,7 +10,7 @@ final class Filter
         'and' => 'array',
         'or' => 'array',
         'not' => 'array',
-        'id' => 'array_int',
+        'id' => 'array_string', // String because array_int would cause leading zeros to get lost
         'genre' => 'array_string',
         'studio' => 'array_string',
         'producer' => 'array_string',
