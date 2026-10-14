@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AniTools\Scraper;
 
+use AniTools\DBService;
 use AniTools\Util\AniListClient;
 use GuzzleHttp\Exception\RequestException;
 use Symfony\Component\Console\Cursor;
@@ -18,7 +19,6 @@ final class AniList implements ScraperInterface
     public const SCRAPER_NAME = 'anilist';
 
     public const VALID_DATATYPES = [
-        'all-media-data',
         'anime',
         'manga',
         'characters',
@@ -26,13 +26,17 @@ final class AniList implements ScraperInterface
         'community-lists',
         'gamblers',
         'challenge',
-        'activities',
         'media-tag-collection',
+        'media-meta',
+        'media-updates',
     ];
 
+    // The amount of entries per page the API let's one request up to
+    private const MAX_PER_PAGE = 50;
+
     private const ANIME_QUERY = '
-    fragment data on Page {
-        media (type: $mediaType sort: ID) {
+    Page {
+        media (sort: ID id_in: $ids type: ANIME) {
             id
             idMal
             title {
@@ -102,19 +106,21 @@ final class AniList implements ScraperInterface
                     hasNextPage
                 }
                 edges {
+                    id
                     node {
                         id
                     }
-                    relationType (version: 2)
+                    relationType (version: 3)
                 }
             }
             synonyms
+            updatedAt
         }
     }';
 
     private const MANGA_QUERY = '
-    fragment data on Page {
-        media (type: $mediaType sort: ID) {
+    Page {
+        media (sort: ID id_in: $ids type: MANGA) {
             id
             idMal
             title {
@@ -174,42 +180,40 @@ final class AniList implements ScraperInterface
                     hasNextPage
                 }
                 edges {
+                    id
                     node {
                         id
                     }
-                    relationType (version: 2)
+                    relationType (version: 3)
                 }
             }
             synonyms
+            updatedAt
         }
     }';
 
     private const MEDIA_RELATION_QUERY = '
-    query ($mediaType: MediaType $page: Int $page2: Int $ids: [Int]) {
-        Page (page: $page) {
-            pageInfo {
-                hasNextPage
-            }
-            media (type: $mediaType id_in: $ids) {
-                id
-                relations (page: $page2) {
-                    pageInfo {
-                        hasNextPage
+    Page {
+        media (id_in: $ids) {
+            id
+            relations (page: $page) {
+                pageInfo {
+                    hasNextPage
+                }
+                edges {
+                    id
+                    node {
+                        id
                     }
-                    edges {
-                        node {
-                            id
-                        }
-                        relationType (version: 3)
-                    }
+                    relationType (version: 3)
                 }
             }
         }
     }';
 
     private const CHARACTER_QUERY = '
-    fragment data on Page {
-        characters (sort: ID) {
+    Page {
+        characters (sort: ID id_in: $ids) {
             id
             name {
                 first
@@ -237,6 +241,7 @@ final class AniList implements ScraperInterface
                     hasNextPage
                 }
                 edges {
+                    id
                     node {
                         id
                     }
@@ -251,26 +256,22 @@ final class AniList implements ScraperInterface
     }';
 
     private const MEDIA_CHARACTER_QUERY = '
-    query ($page: Int $page2: Int $ids: [Int]) {
-        Page(page: $page) {
-            pageInfo {
-                hasNextPage
-            }
-            characters (id_in: $ids sort: ID) {
-                id
-                media (page: $page2 sort: ID) {
-                    pageInfo {
-                        hasNextPage
+    Page {
+        characters (id_in: $ids sort: ID) {
+            id
+            media (page: $page sort: ID) {
+                pageInfo {
+                    hasNextPage
+                }
+                edges {
+                    id
+                    node {
+                        id
                     }
-                    edges {
-                        node {
-                            id
-                        }
-                        characterRole
-                        voiceActors {
-                            id
-                            languageV2
-                        }
+                    characterRole
+                    voiceActors {
+                        id
+                        languageV2
                     }
                 }
             }
@@ -278,8 +279,8 @@ final class AniList implements ScraperInterface
     }';
 
     private const STAFF_QUERY = '
-    fragment data on Page {
-        staff (sort: ID) {
+    Page {
+        staff (sort: ID id_in: $ids) {
             id
             name {
                 first
@@ -313,6 +314,7 @@ final class AniList implements ScraperInterface
                     hasNextPage
                 }
                 edges {
+                    id
                     node {
                         id
                     }
@@ -323,23 +325,19 @@ final class AniList implements ScraperInterface
     }';
 
     private const MEDIA_STAFF_QUERY = '
-    query ($page: Int $page2: Int $ids: [Int]) {
-        Page (page: $page) {
-            pageInfo {
-                hasNextPage
-            }
-            staff (id_in: $ids) {
-                id
-                staffMedia (page: $page2 sort: ID) {
-                    pageInfo {
-                        hasNextPage
+    Page {
+        staff (sort: ID id_in: $ids) {
+            id
+            staffMedia (page: $page sort: ID perPage: 50) {
+                pageInfo {
+                    hasNextPage
+                }
+                edges {
+                    id
+                    node {
+                        id
                     }
-                    edges {
-                        node {
-                            id
-                        }
-                        staffRole
-                    }
+                    staffRole
                 }
             }
         }
@@ -384,28 +382,6 @@ final class AniList implements ScraperInterface
         }
     }';
 
-    private const USER_QUERY = '
-    query ($userName: String) {
-        User (name: $userName) {
-            id
-        }
-    }';
-
-    private const ACTIVITIES_QUERY = '
-    fragment data on Page {
-        activities(userId: $userId type: MEDIA_LIST) {
-            ... on ListActivity {
-                id
-                createdAt
-                media {
-                    id
-                }
-                progress
-                status
-            }
-        }
-    }';
-
     private const MEDIA_TAG_COLLECTION_QUERY = '
     query {
         MediaTagCollection {
@@ -415,44 +391,38 @@ final class AniList implements ScraperInterface
         }
     }';
 
+    private const MEDIA_META_QUERY = 'Page { media (sort: ID id_in: $ids ) { id type updatedAt }}';
+
     private const QUERY_MAP = [
         'anime' => self::ANIME_QUERY,
         'manga' => self::MANGA_QUERY,
         'characters' => self::CHARACTER_QUERY,
         'staff' => self::STAFF_QUERY,
         'challenge' => self::CHALLENGE_THREAD_QUERY,
-        'activities' => self::ACTIVITIES_QUERY,
-    ];
-
-    private const RELATION_QUERY_MAP = [
-        'characters' => self::MEDIA_CHARACTER_QUERY,
-        'staff' => self::MEDIA_STAFF_QUERY,
-        'relations' => self::MEDIA_RELATION_QUERY,
+        'meta' => self::MEDIA_META_QUERY,
+        'characters-relations' => self::MEDIA_CHARACTER_QUERY,
+        'staff-relations' => self::MEDIA_STAFF_QUERY,
+        'media-relations' => self::MEDIA_RELATION_QUERY,
     ];
 
     // Contains the maximum amounts of pages that can get requestes at once with the queries hitting maximum complexity
     private const BATCH_MAP = [
-        'anime' => 8,
-        'manga' => 9,
-        'characters' => 16,
-        'staff' => 15,
-        'activities' => 50,
-    ];
-
-    // If not in there, Int will be assumed
-    private const QUERY_VARS_TYPE_MAP = [
-        'mediaType' => 'MediaType',
+        'anime' => 7,
+        'manga' => 8,
+        'characters' => 15,
+        'staff' => 14,
+        'characters-relations' => 30,
+        'staff-relations' => 30,
+        'media-relations' => 30,
     ];
 
     private string $file;
     private string $mediaType;
-    /** @var array<int, mixed> */
+    /** @var array<int, mixed> Contains all the main type data collected during the scrape */
     private array $data;
-    // Contains ids of types with more relational data, used for the request
-    /** @var int[] */
-    private array $idsWithMoreData;
-    // Contains ids of types that have even more data after a fetchRelationalData walkthrough
-    /** @var int[] */
+    /** @var int[] All type queries request the first page of relational data. If an entry has more than that the IDs
+     *             will be added to this array which then will be handled further by self::fetchRelationalData()
+     */
     private array $idsWithYetMoreData = [];
     /** @var array<int, mixed> */
     private array $relationalData;
@@ -494,20 +464,26 @@ final class AniList implements ScraperInterface
         }
     }
 
-    public function scrape(string $mediaType, string $userName = null): int
+    public function scrape(string $mediaType): int
     {
         $mediaType = strtolower($mediaType);
 
         switch ($mediaType) {
+            case 'media-meta':
+                $this->output->writeln('Fetching state of last update of media');
+                $this->scrapeMediaMeta();
+                break;
+            case 'media-updates':
+                $this->output->writeln('Fetching updated media data based on meta file');
+                $this->scrapeUpdatedMedia('anime');
+                $this->scrapeUpdatedMedia('manga');
+                break;
             case 'anime':
             case 'manga':
-                $this->output->writeln('Scraping ' . $mediaType . ' data');
-                $this->getBatchedPageData($mediaType, ['mediaType' => strtoupper($mediaType)]);
-                break;
             case 'characters':
             case 'staff':
                 $this->output->writeln('Scraping ' . $mediaType . ' data');
-                $this->getBatchedPageData($mediaType, []);
+                $this->fullScrape($mediaType);
                 break;
             case 'community-lists':
                 $this->scrapeCommunityLists();
@@ -519,35 +495,11 @@ final class AniList implements ScraperInterface
                 $picks = $this->scrapeGamblerBotPicks(6171);
                 $this->output->writeln('Scraping Gambler\'s 2.0 thread');
                 $picks += $this->scrapeGamblerBotPicks(28272);
+                $this->output->writeln('Scraping Gambler\'s 3.0 thread');
+                $picks += $this->scrapeGamblerBotPicks(69776);
                 $picks = array_map("unserialize", array_unique(array_map("serialize", $picks)));
                 file_put_contents($filename, json_encode($picks, JSON_UNESCAPED_UNICODE));
                 $this->output->writeln('Done.');
-                break;
-            case 'all-media-data':
-                $this->output->writeln('Scraping anime data');
-                $this->getBatchedPageData('anime', ['mediaType' => 'ANIME']);
-                $this->output->writeln('Scraping manga data');
-                $this->getBatchedPageData('manga', ['mediaType' => 'MANGA']);
-                $this->output->writeln('Scraping character data');
-                $this->getBatchedPageData('characters', []);
-                $this->output->writeln('Scraping staff data');
-                $this->getBatchedPageData('staff', []);
-                $this->output->writeln('Scraping community lists data');
-                $this->scrapeCommunityLists();
-                break;
-            case 'activities':
-                $response = AniListClient::request(self::USER_QUERY, ['userName' => $userName]);
-                if ($response['data'] === []) {
-                    $this->output->writeln('User not found.');
-
-                    return Command::FAILURE;
-                }
-
-                $userId = $response['data']['User']['id'];
-
-                $vars = ['userId' => $userId];
-                $this->getBatchedPageData($this->mediaType, $vars);
-
                 break;
             case 'media-tag-collection':
                 $this->output->writeln('Scraping media tag collection');
@@ -558,6 +510,299 @@ final class AniList implements ScraperInterface
         }
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * @param "anime"|"manga" $mediaType
+     */
+    private function scrapeUpdatedMedia(string $mediaType): void
+    {
+        // Load current data
+        $this->data = json_decode(file_get_contents('data/import/data-' . $mediaType . '.json'), true);
+
+        // Load current relations
+        $this->relationalData = json_decode(
+            file_get_contents('data/import/data-' . $mediaType . '-relations.json'),
+            true
+        );
+
+        $metaData = json_decode(file_get_contents('data/import/data-media-meta.json'), true)[$mediaType];
+        $toUpdate = [];
+
+        foreach ($metaData as $id => $updatedAt) {
+            // If the media is new or it's reported updatedAt is newer than what we have, add ID to update queue
+            if (! isset($this->data[$id]) || $updatedAt > ($this->data[$id]['updatedAt'] ?? 0)) {
+                $toUpdate[] = $id;
+            }
+        }
+
+        // Delete media that was deleted on AL from our JSON file
+        $ids = array_keys($this->data);
+        $deletedCount = 0;
+        foreach ($ids as $id) {
+            if (! isset($metaData[$id])) {
+                unset($this->data[$id]);
+                unset($this->relationalData[$id]);
+                ++$deletedCount;
+            }
+        }
+
+        $this->output->writeln('Found ' . \count($toUpdate) . ' ' . $mediaType . ' that require updating');
+        $this->output->writeln($deletedCount . ' ' . $mediaType . ' were deleted');
+
+        // Save the data after deleting removed entries
+        file_put_contents(
+            'data/import/data-' . $mediaType . '.json',
+            json_encode($this->data, JSON_UNESCAPED_UNICODE)
+        );
+        file_put_contents(
+            'data/import/data-' . $mediaType . '-relations.json',
+            json_encode($this->relationalData, JSON_UNESCAPED_UNICODE)
+        );
+
+        // Update data
+        $this->getBatchedData($mediaType, $toUpdate);
+    }
+
+    /** @param array<int, int> $ids */
+    private function getBatchedData(string $mediaType, array $ids): void
+    {
+        $this->mediaType = $mediaType;
+        $filename = 'data/import/data-' . $mediaType . '.json';
+        $this->file = $filename;
+
+        // 2026-05-11 not sure how restoring should work with chunking in place right now
+        // Progress file found, overwrite data and continue where we left off
+        //if (file_exists($this->file . '.wip')) {
+        //    $this->output->writeln('Progress file found, continuing previously stopped scrape');
+        //    $this->progress = json_decode(file_get_contents($this->file . '.wip'), true);
+        //    $page = $this->progress['page'];
+        //    $this->data = $this->progress['data'];
+        //    $this->idsWithYetMoreData = $this->progress['idsWithYetMoreData'];
+        //    $this->relationalData = $this->progress['relationalData'];
+        //}
+
+        $chunks = array_chunk($ids, self::BATCH_MAP[$mediaType] * self::MAX_PER_PAGE);
+
+        $this->progressBar = new ProgressBar($this->output);
+        $this->progressBar->setMessage('Fetching data...');
+        $this->progressBar->setMaxSteps(\count($chunks));
+        $this->progressBar->setProgress(1);
+        $this->progressBar->start();
+
+        foreach ($chunks as $chunk) {
+            try {
+                $this->fetchBatchedData($mediaType, $chunk);
+                $this->progressBar->advance();
+            } catch (Throwable $e) {
+                // Do nothing, continue the loop. We. are. not. finished.
+                $this->handleException($e);
+            }
+        }
+
+        $this->progressBar->finish();
+        $this->output->write(PHP_EOL);
+
+        if (file_exists($filename)) {
+            unlink($filename);
+        }
+        file_put_contents($filename, json_encode($this->data, JSON_UNESCAPED_UNICODE));
+
+        $this->fetchRelationalData();
+
+        // Delete Progress file
+        //if (file_exists($this->file . '.wip')) {
+        //    unlink($this->file . '.wip');
+        //}
+    }
+
+    /**
+     * @param array<int, int> $ids
+     * @return void
+     */
+    private function fetchBatchedData(string $mediatype, array $ids): void
+    {
+        $preparedQuery = $this->getBatchedQuery($mediatype, array_chunk($ids, self::MAX_PER_PAGE, false));
+
+        $response = AniListClient::request($preparedQuery['query'], $preparedQuery['vars']);
+        if (isset($response['errors'])) {
+            $this->progressBar->finish();
+            $this->output->write(PHP_EOL);
+            $this->output->writeln(json_encode($response['errors']));
+            die;
+        }
+
+        $data = $response['data'];
+
+        // The GraphQL API returns anime and manga as "media"
+        $key = $mediatype;
+        if ($mediatype === 'anime' || $mediatype === 'manga') {
+            $key = 'media';
+        }
+
+        foreach ($data as $page) {
+            foreach ($page[$key] as $row) {
+                // Extract info that won't be stored with the mediatype directly
+                $this->handleRelationalData($row);
+                switch ($mediatype) {
+                    case 'anime':
+                    case 'manga':
+                        unset($row['relations']);
+                        break;
+                    case 'characters':
+                        unset($row['media']);
+                        break;
+                    case 'staff':
+                        unset($row['staffMedia']);
+                        break;
+                }
+                $this->data[$row['id']] = $row;
+            }
+        }
+
+        /*
+        $this->progress = [
+            'page' => $until,
+        ];
+        */
+    }
+
+    private function scrapeMediaMeta(): void
+    {
+        // First we retrieve info on all the media that we already know of
+        $data = [
+            'anime' => [],
+            'manga' => [],
+        ];
+
+        // We start by fetching all known media IDs from our own database
+        $con = DBService::getDBConnection();
+        $sel = $con->createQueryBuilder();
+        $sel->select('COUNT(id) as amount');
+        $sel->from('media');
+        $result = $sel->executeQuery()->fetchAssociative();
+
+        $this->output->writeln($result['amount'] . ' media currently in database');
+
+        // Now we check for newly added media
+        // First we get the latest media id from the API
+        $newestIdQuery = 'query { Media (sort: ID_DESC) {id}}';
+        $response = AniListClient::request($newestIdQuery);
+        $newestId = $response['data']['Media']['id'];
+        // Then we create a chunked list of theoretical IDs between the newest and 1
+        // Theoretical because the media might've been deleted in the meantime
+        $idsToCheck = range(1, $newestId);
+
+        $this->output->writeln('Fetching fresh metadata for up to ' . $newestId . ' entries');
+
+        // Build the GQL query we'll use
+        $batchSize = 10;
+        $queryChunks = array_chunk($idsToCheck, $batchSize * self::MAX_PER_PAGE, false);
+        $this->progressBar = new ProgressBar($this->output);
+        $this->progressBar->setMaxSteps(\count($queryChunks));
+        $this->progressBar->setProgress(1);
+        $this->progressBar->start();
+
+        foreach ($queryChunks as $q => $queryChunk) {
+            $this->progressBar->setMessage(
+                'Requesting pages ' . (($q + 1) * $batchSize) . ' - ' . ((($q + 1) * $batchSize) + $batchSize) . '...'
+            );
+            $pageChunks = array_chunk($queryChunk, self::MAX_PER_PAGE, false);
+
+            $metaQuery = $this->getBatchedQuery('meta', $pageChunks);
+
+            $response = AniListClient::request($metaQuery['query'], $metaQuery['vars']);
+            if (isset($response['errors'])) {
+                $this->progressBar->finish();
+                $this->output->write(PHP_EOL);
+                $this->output->writeln(json_encode($response['errors']));
+                die;
+            }
+
+            foreach ($response['data'] as $page) {
+                foreach ($page['media'] as $row) {
+                    $data[strtolower($row['type'])][$row['id']] = $row['updatedAt'];
+                }
+            }
+
+            $this->progressBar->advance();
+        }
+
+        $this->progressBar->finish();
+        $this->output->write(PHP_EOL);
+
+        $this->output->writeln('New media count: ' . (\count($data['anime']) + \count($data['manga'])));
+
+        $filename = 'data/import/data-media-meta.json';
+        if (file_exists($filename)) {
+            unlink($filename);
+        }
+        file_put_contents($filename, json_encode($data, JSON_UNESCAPED_UNICODE));
+    }
+
+    private function fullScrape(string $mediaType): void
+    {
+        $this->data = [];
+        $this->relationalData = [];
+
+        $APIType = match ($mediaType) {
+            'characters' => 'Character',
+            'staff' => 'Staff',
+            'anime' => 'Media',
+            'manga' => 'Media',
+            default => null,
+        };
+
+        if ($APIType === null) {
+            throw new \InvalidArgumentException('Mediatype ' . $mediaType . ' is not allowed for a full scrape yet');
+        }
+
+        // First we get the latest id from the API
+        $newestIdQuery = 'query { ' . $APIType . ' (sort: ID_DESC) {id}}';
+        if ($APIType === 'Media') {
+            $newestIdQuery = 'query { ' . $APIType . ' (sort: ID_DESC type: ' . strtoupper($mediaType) . ') {id}}';
+        }
+
+        $response = AniListClient::request($newestIdQuery);
+        $newestId = $response['data'][$APIType]['id'];
+        // Then we create a chunked list of theoretical IDs between the newest and 1
+        // Theoretical because the media might've been deleted in the meantime
+        $idsToCheck = range(1, $newestId);
+
+        $this->output->writeln('Fetching fresh data for up to ' . $newestId . ' ' . $APIType . ' entries');
+
+        $this->getBatchedData($mediaType, $idsToCheck);
+    }
+
+    /**
+     * @param array<int, int[]> $chunkedIds
+     *
+     * @return array{
+     *  query: string,
+     *  vars: array<string, int[]>
+     * }
+     */
+    private function getBatchedQuery(string $mediaType, array $chunkedIds, ?int $page = null): array
+    {
+        $query = self::QUERY_MAP[$mediaType];
+
+        $queryVars = [];
+        $vars = [];
+        if ($page !== null) {
+            $vars[] = '$page: Int';
+            $queryVars['page'] = $page;
+        }
+        $pages = [];
+        foreach ($chunkedIds as $i => $pageSet) {
+            $vars[] = '$ids' . $i . ': [Int]';
+            $pages[] = 'p' . $i . ': ' . str_replace('$ids', '$ids' . $i, $query);
+            $queryVars['ids' . $i] = $pageSet;
+        }
+
+        return [
+            'query' => 'query (' . implode(',', $vars) . ') { ' . implode('', $pages) . ' }',
+            'vars' => $queryVars,
+        ];
     }
 
     private function scrapeMediaTagCollection(): void
@@ -587,7 +832,7 @@ final class AniList implements ScraperInterface
                 $data[$list['name']][] = $entry['media']['id'];
             }
         }
-        file_put_contents($filename, json_encode($data), JSON_UNESCAPED_UNICODE);
+        file_put_contents($filename, json_encode($data, JSON_UNESCAPED_UNICODE));
     }
 
     /*
@@ -679,204 +924,61 @@ final class AniList implements ScraperInterface
         }
     }
 
-    /** @param array<string, mixed> $vars */
-    private function getBatchedPageData(string $mediaType, ?array $vars): void
-    {
-        $this->data = [];
-        $this->relationalData = [];
-        $page = 1;
-
-        $this->mediaType = $mediaType;
-        $filename = 'data/import/data-' . $mediaType . '.json';
-        $this->file = $filename;
-
-        // Progress file found, overwrite data and continue where we left off
-        if (file_exists($this->file . '.wip')) {
-            $this->output->writeln('Progress file found, continuing previously stopped scrape');
-            $this->progress = json_decode(file_get_contents($this->file . '.wip'), true);
-            $page = $this->progress['page'];
-            $this->data = $this->progress['data'];
-            $this->idsWithYetMoreData = $this->progress['idsWithYetMoreData'];
-            $this->relationalData = $this->progress['relationalData'];
-        }
-
-        $this->progressBar = new ProgressBar($this->output);
-        $this->progressBar->setProgress($page);
-        $this->progressBar->start();
-        $hasNextPage = true;
-
-        while ($hasNextPage === true) {
-            try {
-                $lastEntry = $this->fetchBatchedPageData($mediaType, $page, $vars);
-                $hasNextPage = $lastEntry['pageInfo']['hasNextPage'];
-                $this->progressBar->advance(self::BATCH_MAP[$mediaType]);
-                $page += self::BATCH_MAP[$mediaType];
-            } catch (Throwable $e) {
-                // Do nothing, continue the loop. We. are. not. finished.
-                $this->handleException($e);
-            }
-        }
-        $this->progressBar->finish();
-        $this->output->write(PHP_EOL);
-
-        if (file_exists($filename)) {
-            unlink($filename);
-        }
-        file_put_contents($filename, json_encode($this->data), JSON_UNESCAPED_UNICODE);
-
-        $this->fetchRelationalData();
-
-        // Delete Progress file
-        if (file_exists($this->file . '.wip')) {
-            unlink($this->file . '.wip');
-        }
-    }
-
-    /**
-     * @param array<string, mixed> $vars
-     * @return array<string, mixed>
-     */
-    private function fetchBatchedPageData(string $mediatype, int $page, array $vars): array
-    {
-        $query = self::QUERY_MAP[$this->mediaType];
-        $query .= 'query ';
-        if (\count($vars) > 0) {
-            $keys = array_keys($vars);
-            $query .= '( ';
-            foreach ($keys as $k) {
-                $query .= '$' . $k . ': ' . (self::QUERY_VARS_TYPE_MAP[$k] ?? 'Int');
-            }
-            $query .= ')';
-        }
-        $query .= '{ ' . PHP_EOL;
-
-        $batchSize = self::BATCH_MAP[$mediatype];
-        $until = $page + $batchSize - 1;
-        for ($i = $page; $i < $until; ++$i) {
-            $query .= 'p' . $i . ': Page (page: ' . $i . ') { ...data } ' . PHP_EOL;
-        }
-        // query pageInfo on the last one
-        $query .= 'p' . $until . ': Page (page: ' . $until . ') { ...data pageInfo { hasNextPage }}' . PHP_EOL;
-
-        $query .= '}';
-
-        $this->progressBar->setMessage('Requesting pages ' . $page . ' - ' . $until . '...');
-
-        $response = AniListClient::request($query, $vars);
-        if (! isset($response['data'])) {
-            $this->output->writeln(json_encode($response['errors']));
-            die;
-        }
-        $data = $response['data'];
-
-        $key = $mediatype;
-        if ($mediatype === 'anime' || $mediatype === 'manga') {
-            $key = 'media';
-        }
-
-        foreach ($data as $page) {
-            foreach ($page[$key] as $row) {
-                $this->handleRelationalData($row);
-                switch ($this->mediaType) {
-                    case 'anime':
-                    case 'manga':
-                        unset($row['relations']);
-                        break;
-                    case 'characters':
-                        unset($row['media']);
-                        break;
-                    case 'staff':
-                        unset($row['staffMedia']);
-                        break;
-                }
-                $this->data[] = $row;
-            }
-        }
-
-        $this->progress = [
-            'page' => $until,
-        ];
-
-        return end($response['data']);
-    }
-
-    // TODO: implement batch requests
     private function fetchRelationalData(): void
     {
         $filename = 'data/import/data-' . $this->mediaType . '-relations.json';
 
-        $this->progressBar = new ProgressBar($this->output, 1);
-
-        $page = 1;
         // The first page was already requested through the initial scrape of the main data
-        $page2 = 2;
-        $hasNextPage = true;
-        $this->progressBar->setMaxSteps((int) ceil(\count($this->idsWithYetMoreData) / 50));
-        $this->idsWithMoreData = $this->idsWithYetMoreData;
-        $this->idsWithYetMoreData = [];
-        if (\count($this->idsWithMoreData) > 0) {
+        $page = 2;
+        $key = $this->mediaType;
+        if (in_array($key, ['anime', 'manga'], true)) {
+            $key = 'media';
+        }
+        while (\count($this->idsWithYetMoreData) > 0) {
             $this->output->writeln(
                 'Scraping additional relational data for '
-                . \count($this->idsWithMoreData) . ' entries. Run 1'
+                . \count($this->idsWithYetMoreData) . ' entries. Run ' . ($page - 1)
             );
-            $this->progressBar->start();
-            // In theory both conditions should turn true at the same time but let's be safe here
-            while (\count($this->idsWithMoreData) > 0 && $hasNextPage === true) {
-                try {
-                    $hasNextPage = $this->fetchRelationalPage($page, $page2);
-                    $this->progressBar->advance();
-                    $this->progressBar->setMessage('Running...');
-                    ++$page;
-                    // After a walkthrough swap the set of ids and prepare the next walkthrough
-                    if ($hasNextPage === false && \count($this->idsWithYetMoreData) > 0) {
-                        $this->idsWithMoreData = $this->idsWithYetMoreData;
-                        $this->idsWithYetMoreData = [];
+            $idsWithMoreData = array_chunk(
+                $this->idsWithYetMoreData,
+                self::BATCH_MAP[$this->mediaType . '-relations'] * self::MAX_PER_PAGE,
+                false
+            );
+            $this->idsWithYetMoreData = [];
 
-                        $this->progressBar->finish();
-                        $this->output->write(PHP_EOL);
-                        $this->output->writeln(
-                            'Scraping additional relational data for '
-                            . \count($this->idsWithMoreData) . ' entries. Run ' . $page2
-                        );
-                        $this->progressBar->setMaxSteps((int) ceil(\count($this->idsWithMoreData) / 50));
-                        $this->progressBar->start();
-                        ++$page2;
-                        $page = 1;
-                        $hasNextPage = true;
+            $this->progressBar = new ProgressBar($this->output);
+            $this->progressBar->setMaxSteps(\count($idsWithMoreData));
+            $this->progressBar->setMessage('Fetching data...');
+            $this->progressBar->setProgress(1);
+            $this->progressBar->start();
+
+            foreach ($idsWithMoreData as $batch) {
+                $pageChunks = array_chunk($batch, self::MAX_PER_PAGE, false);
+                try {
+                    $query = $this->getBatchedQuery($this->mediaType . '-relations', $pageChunks, $page);
+
+                    $response = AniListClient::request($query['query'], $query['vars']);
+                    foreach ($response['data'] as $p) {
+                        foreach ($p[$key] as $row) {
+                            $this->handleRelationalData($row);
+                        }
                     }
+                    $this->progressBar->advance();
                 } catch (Throwable $e) {
                     // Do nothing, continue the loop. We. are. not. finished.
                     $this->handleException($e);
                 }
             }
+
             $this->progressBar->finish();
             $this->output->write(PHP_EOL);
+            ++$page;
         }
 
         $this->output->writeln('Writing relational data to file.');
         file_put_contents($filename, json_encode($this->relationalData));
 
         $this->output->writeln('Done.');
-    }
-
-    private function fetchRelationalPage(int $page, int $page2): bool
-    {
-        $response = AniListClient::request(
-            self::RELATION_QUERY_MAP[$this->mediaType],
-            [
-                'page' => $page,
-                'page2' => $page2,
-                'ids' => $this->idsWithMoreData,
-                'mediaType' => $this->mediaType,
-            ],
-        );
-        $data = $this->getData($response['data']);
-
-        foreach ($data as $main) {
-            $this->handleRelationalData($main);
-        }
-
-        return $response['data']['Page']['pageInfo']['hasNextPage'];
     }
 
     /** @param array<string, mixed> $data */
@@ -909,7 +1011,7 @@ final class AniList implements ScraperInterface
                     ];
                 }
             } else {
-                $this->relationalData[$id][] = [
+                $this->relationalData[$id][$edge['id']] = [
                     'media_id' => $edge['node']['id'],
                     'role' => $edge['characterRole'],
                 ];
@@ -923,7 +1025,7 @@ final class AniList implements ScraperInterface
     private function handleStaffRelations(int $id, array $data): bool
     {
         foreach ($data['edges'] as $edge) {
-            $this->relationalData[$id][] = [
+            $this->relationalData[$id][$edge['id']] = [
                 'media_id' => $edge['node']['id'],
                 'role' => $edge['staffRole'],
             ];
@@ -936,31 +1038,12 @@ final class AniList implements ScraperInterface
     private function handleMediaRelations(int $id, array $data): bool
     {
         foreach ($data['edges'] as $edge) {
-            $this->relationalData[$id][] = [
+            $this->relationalData[$id][$edge['id']] = [
                 'related_media_id' => $edge['node']['id'],
                 'relation_type' => $edge['relationType'],
             ];
         }
 
         return $data['pageInfo']['hasNextPage'];
-    }
-
-    /**
-     * @param array<string, mixed> $json
-     * @return array<int, mixed>
-     */
-    private function getData(array $json): array
-    {
-        switch ($this->mediaType) {
-            case 'anime':
-            case 'manga':
-                return $json['Page']['media'];
-            case 'characters':
-                return $json['Page']['characters'];
-            case 'staff':
-                return $json['Page']['staff'];
-            default:
-                throw new \InvalidArgumentException($this->mediaType . ' is not supported by this method.');
-        }
     }
 }

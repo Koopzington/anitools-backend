@@ -19,7 +19,6 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\ChoiceQuestion;
-use Symfony\Component\Console\Question\Question;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(name: 'app:scrape', description: 'Scrapes various datasources in for an import into the local database')]
@@ -36,7 +35,6 @@ final class Scrape extends Command implements SignalableCommandInterface
 
     private ?ScraperInterface $scraper = null;
     private ?string $dataType = null;
-    private ?string $userName = null;
 
     protected function configure(): void
     {
@@ -46,7 +44,6 @@ final class Scrape extends Command implements SignalableCommandInterface
             'Which scraper to use.',
         );
         $this->addArgument('dataType', InputArgument::OPTIONAL);
-        $this->addArgument('userName', InputArgument::OPTIONAL);
     }
 
     protected function interact(InputInterface $input, OutputInterface $output)
@@ -101,22 +98,6 @@ final class Scrape extends Command implements SignalableCommandInterface
             return;
         }
 
-        $userName = $input->getArgument('userName');
-        if ($dataType === 'activities' && $userName === null) {
-            $question = new Question('Please enter the username: ', null);
-            $userName = $io->askQuestion($question);
-
-            if ($userName === null) {
-                $io->writeln(
-                    '<error>Username needs to be provided</error>'
-                );
-
-                return;
-            }
-
-            $this->userName = $userName;
-        }
-
         $this->dataType = $dataType;
     }
 
@@ -126,11 +107,7 @@ final class Scrape extends Command implements SignalableCommandInterface
             return self::FAILURE;
         }
 
-        if ($this->scraper instanceof AniList) {
-            return $this->scraper->scrape($this->dataType, $this->userName);
-        } else {
-            return $this->scraper->scrape($this->dataType);
-        }
+        return $this->scraper->scrape($this->dataType);
     }
 
     /** @return array<int, int> */
