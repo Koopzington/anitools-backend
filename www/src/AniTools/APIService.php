@@ -448,27 +448,28 @@ final class APIService
                 $where[] = $qb->expr()->eq($mapped['d'], $day);
             }
         } else {
-            // Check if date is valid
-            if (! checkdate((int) $month, (int) $day, (int) $year)) {
-                return $where;
-            }
-
-            $t = 'make_date(' . $mapped['y'] . ', coalesce(' . $mapped['m'] . ', 1), coalesce(' . $mapped['d']
-                . ', 1))';
+            // We can't use make_date because of possibly fictional dates both on characters and staff (V-Tubers)
+            $t = "CONCAT(
+                coalesce(" . $mapped['y'] . ", '1'), 
+                lpad(coalesce(" . $mapped['m'] . ", 1)::text, 2, '0'),
+                lpad(coalesce(" . $mapped['d'] . ", 1)::text, 2, '0')
+            )::int";
 
             // No need to build a date in the sql if the column has a date type
             if (isset($mapped['col'])) {
                 $t = $mapped['col'];
             }
 
+            $v = (int) $year . $month . $day;
+
             if ($min === true) {
-                $where[] = 'NOT(' . $qb->expr()->lte($t, "'$value'") . ')';
+                $where[] = 'NOT(' . $qb->expr()->lte($t, "'$v'") . ')';
             } elseif ($max === true) {
-                $where[] = 'NOT(' . $qb->expr()->gte($t, "'$value'") . ')';
+                $where[] = 'NOT(' . $qb->expr()->gte($t, "'$v'") . ')';
             } elseif ($mapped['dir'] === '<') {
-                $where[] = 'NOT(' . $qb->expr()->gte($t, "'$value'") . ')';
+                $where[] = 'NOT(' . $qb->expr()->gte($t, "'$v'") . ')';
             } else {
-                $where[] = 'NOT(' . $qb->expr()->lte($t, "'$value'") . ')';
+                $where[] = 'NOT(' . $qb->expr()->lte($t, "'$v'") . ')';
             }
         }
 
@@ -796,7 +797,7 @@ final class APIService
             // Maximum Mean Score
             if ($key === 'meanScoreMax' && $value !== 0) {
                 // The db doesn't consider null = 0 so we gotta include the null values
-                // If minimum episodes > 0 the null values will get filtered out again
+                // If minimum mean score > 0 the null values will get filtered out again
                 $where[] = $qb->expr()->or(
                     $qb->expr()->lte('mean_score', (string) $value),
                     $qb->expr()->isNull('mean_score'),
@@ -809,7 +810,7 @@ final class APIService
             // Maximum Average Score
             if ($key === 'avgScoreMax' && $value !== 0) {
                 // The db doesn't consider null = 0 so we gotta include the null values
-                // If minimum episodes > 0 the null values will get filtered out again
+                // If minimum avg score > 0 the null values will get filtered out again
                 $where[] = $qb->expr()->or(
                     $qb->expr()->lte('average_score', (string) $value),
                     $qb->expr()->isNull('average_score'),
@@ -822,7 +823,7 @@ final class APIService
             // Maximum Popularity
             if ($key === 'popularityMax' && $value !== 0) {
                 // The db doesn't consider null = 0 so we gotta include the null values
-                // If minimum episodes > 0 the null values will get filtered out again
+                // If minimum popularity > 0 the null values will get filtered out again
                 $where[] = $qb->expr()->or(
                     $qb->expr()->lte('popularity', (string) $value),
                     $qb->expr()->isNull('popularity'),

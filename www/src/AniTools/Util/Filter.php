@@ -272,24 +272,7 @@ final class Filter
             return false;
         }
 
-        list($year, $month, $day) = explode('-', $value);
-
-        // Out of bounds check
-        if ($month !== '*' && ($month < 1 || $month > 12)) {
-            return false;
-        }
-
-        // Out of bounds check
-        if ($day !== '*' && ($day < 1 || $day > 31)) {
-            return false;
-        }
-
-        // Check if full date is valid
-        if (is_numeric($year) && is_numeric($month) && is_numeric($day)) {
-            if (! checkdate((int) $month, (int) $day, (int) $year)) {
-                return false;
-            }
-        }
+        // Further validation can't be done due to possibly fictional dates on characters or staff (V-Tubers)
 
         return true;
     }
