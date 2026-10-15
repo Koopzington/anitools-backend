@@ -137,7 +137,7 @@ final class APIService
         'notes',
         'isPrivate',
         'umCreatedAt',
-        'umUpdatedAt'
+        'umUpdatedAt',
     ];
 
     public function __construct(Connection $db, UserManager $userManager, Logger $logger)

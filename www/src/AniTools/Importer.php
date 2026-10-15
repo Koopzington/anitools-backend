@@ -81,7 +81,8 @@ use Symfony\Component\Console\Output\OutputInterface;
  *  externalLinks: array<int, array{
  *    site: string
  *  }>,
- *  synonyms: array<int, string>
+ *  synonyms: array<int, string>,
+ *  updatedAt: int
  * }
  */
 final class Importer
