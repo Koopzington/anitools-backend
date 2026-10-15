@@ -70,6 +70,7 @@ final class APIService
         'statusCompleted' => 'status_completed',
         'statusDropped' => 'status_dropped',
         'statusPaused' => 'status_paused',
+        'updatedAt' => 'media.updated_at',
         'status' => 'user_media.status',
         'progress' => 'user_media.progress',
         'progressVolumes' => 'user_media.progress_volumes',
@@ -81,6 +82,8 @@ final class APIService
         'score' => 'user_media.score',
         'notes' => 'user_media.notes',
         'isPrivate' => 'user_media.is_private',
+        'umCreatedAt' => 'user_media.created_at',
+        'umUpdatedAt' => 'user_media.updated_at',
         // Staff and Characters
         'nameFirst' => 'name_first',
         'nameMiddle' => 'name_middle',
@@ -133,6 +136,8 @@ final class APIService
         'score',
         'notes',
         'isPrivate',
+        'umCreatedAt',
+        'umUpdatedAt'
     ];
 
     public function __construct(Connection $db, UserManager $userManager, Logger $logger)

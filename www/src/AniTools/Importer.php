@@ -298,6 +298,7 @@ final class Importer
                     'status_dropped' => $statsDropped,
                     'status_paused' => $statsPaused,
                     'synonyms' => $media['synonyms'],
+                    'updated_at' => $media['updatedAt'],
                 ];
 
                 $uGenres = array_values(array_unique($media['genres']));
