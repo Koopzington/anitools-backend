@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AniTools\Scraper;
 
 use AniTools\DBService;
+use AniTools\ScrapeStateManager;
 use AniTools\Util\AniListClient;
 use GuzzleHttp\Exception\RequestException;
 use Symfony\Component\Console\Cursor;
@@ -562,6 +563,8 @@ final class AniList implements ScraperInterface
 
         // Update data
         $this->getBatchedData($mediaType, $toUpdate);
+
+        ScrapeStateManager::updateScrapeState($mediaType);
     }
 
     /** @param array<int, int> $ids */
@@ -772,6 +775,8 @@ final class AniList implements ScraperInterface
         $this->output->writeln('Fetching fresh data for up to ' . $newestId . ' ' . $APIType . ' entries');
 
         $this->getBatchedData($mediaType, $idsToCheck);
+
+        ScrapeStateManager::updateScrapeState($mediaType);
     }
 
     /**

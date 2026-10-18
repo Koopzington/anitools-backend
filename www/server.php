@@ -5,6 +5,7 @@ declare(strict_types=1);
 use AniTools\DBService;
 use AniTools\Endpoint\EndpointInterface;
 use AniTools\Endpoint\FilterValues;
+use AniTools\Endpoint\ScrapeState;
 use AniTools\Endpoint\Search;
 use AniTools\Endpoint\SearchForFilter;
 use AniTools\Endpoint\SearchStaff;
@@ -50,6 +51,7 @@ $endpoints = [
     new SearchStaff($backend),
     new UserLists($backend),
     new Search($backend, $userManager),
+    new ScrapeState(),
 ];
 
 foreach ($endpoints as $endpoint) {
