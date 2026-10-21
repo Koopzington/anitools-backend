@@ -32,11 +32,11 @@ final class MangaUpdatesClient
      * @param MUSeriesSearchRequestVars | null $variables
      * @return array<string, mixed>
      * */
-    public static function request(string $url, array $variables = null): array
+    public static function request(string $url, ?array $variables = null): array
     {
         if (! isset(self::$client)) {
             // Only retry requests when the server responds with a 503 (Service Temporarily Unavailable)
-            $decider = function (int $retries, RequestInterface $request, ResponseInterface $response = null): bool {
+            $decider = function (int $retries, RequestInterface $request, ?ResponseInterface $response = null): bool {
                 return $response !== null && $response->getStatusCode() === 503;
             };
 

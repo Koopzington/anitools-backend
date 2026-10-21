@@ -30,7 +30,7 @@ final class AniListClient
         $decider = function (
             int $retries,
             RequestInterface $request,
-            ResponseInterface $response = null
+            ?ResponseInterface $response = null
         ) use ($withTimeout): bool {
             if ($response === null) {
                 throw new \UnexpectedValueException('The AL API returned an unexpected response');
@@ -119,7 +119,7 @@ final class AniListClient
     public static function request(
         string $query,
         array $vars = [],
-        string $accessToken = null,
+        ?string $accessToken = null,
         ?ProgressBar $progressBar = null,
         bool $withTimeout = false,
     ): array {

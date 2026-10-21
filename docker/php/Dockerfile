@@ -1,4 +1,4 @@
-FROM php:8.3-cli-alpine
+FROM php:8.5-cli-alpine
 
 RUN apk add --no-cache libpq libpq-dev
 # We needd libpq-dev for installing the PDO extension for Postgres
