@@ -77,7 +77,11 @@ final class MangaDex implements ScraperInterface
         }
         $muMappings = json_decode(file_get_contents('data/other/mangaupdates_id_mappings.json'), true);
 
-        $client = new Client();
+        $client = new Client([
+            'headers' => [
+                'User-Agent' => 'AniTools/1.0',
+            ],
+        ]);
 
         // Results to MangaDex are limited at 10k when using offset, thus instead of traditional paginating we're
         // ordering by the creation date and take the creation date of the last result (+1s) as offset

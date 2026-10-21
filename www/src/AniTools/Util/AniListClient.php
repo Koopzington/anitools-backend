@@ -98,10 +98,16 @@ final class AniListClient
         if ($withTimeout === true) {
             self::$timeoutClient = new Client([
                 'handler' => $stack,
+                'headers' => [
+                    'User-Agent' => 'AniTools/1.0',
+                ],
             ]);
         } else {
             self::$client = new Client([
                 'handler' => $stack,
+                'headers' => [
+                    'User-Agent' => 'AniTools/1.0',
+                ],
             ]);
         }
     }

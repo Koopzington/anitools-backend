@@ -64,6 +64,9 @@ final class MangaUpdatesClient
             self::$client = new Client([
                 'base_uri' => self::API_URL,
                 'handler' => $stack,
+                'headers' => [
+                    'User-Agent' => 'AniTools/1.0',
+                ],
             ]);
         }
 

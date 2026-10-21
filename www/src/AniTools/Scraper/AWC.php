@@ -24,7 +24,11 @@ final class AWC implements ScraperInterface
     public function __construct(OutputInterface $output)
     {
         $this->output = $output;
-        $this->client = new Client();
+        $this->client = new Client([
+            'headers' => [
+                'User-Agent' => 'AniTools/1.0',
+            ],
+        ]);
     }
 
     public function scrape(string $dataType): int
