@@ -17,7 +17,7 @@ final class MangaBaka implements ScraperInterface
 
     public const MAPPINGS_FILE = 'data/import/mangabaka-mappings.json';
 
-    private const DB_URL = 'https://api.mangabaka.dev/v1/database/series.json.tar.gz';
+    private const DB_URL = 'https://api.mangabaka.org/v1/database/series.json.tar.gz';
     private const TMP_DIR = 'data/import/mangabaka-db/';
 
     private OutputInterface $output;
@@ -70,7 +70,6 @@ final class MangaBaka implements ScraperInterface
 
         $keys = [
             'anime_news_network' => 'ann',
-            'mangadex' => 'md',
             'manga_updates' => 'mu',
             'my_anime_list' => 'mal',
             'kitsu' => 'ki',
