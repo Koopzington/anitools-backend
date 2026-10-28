@@ -45,7 +45,7 @@ final class AWC implements ScraperInterface
         $response = $this->client->get(self::URL . 'lists/json')
             ->getBody()->getContents();
         $response = json_decode($response, true);
-        
+
         $data = [];
         foreach ($response as $media) {
             foreach ($media['lists'] as $list) {
