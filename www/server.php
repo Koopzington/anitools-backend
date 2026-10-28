@@ -23,7 +23,9 @@ include 'vendor/autoload.php';
 if (
     ! (getenv('DB_USER') &&
     getenv('DB_DATABASE') &&
-    getenv('DB_PASSWORD')
+    getenv('DB_PASSWORD') &&
+    getenv('DB_HOST') &&
+    getenv('DB_DRIVER')
     )
 ) {
     echo 'It seems that this server was started before an .env file was generated.';

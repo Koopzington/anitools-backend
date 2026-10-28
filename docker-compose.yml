@@ -11,6 +11,8 @@ services:
       - DB_USER=${DB_USER}
       - DB_DATABASE=${DB_DATABASE}
       - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_DRIVER=${DB_DRIVER}
     depends_on:
       - postgres
     restart: always
@@ -28,6 +30,8 @@ services:
       - DB_USER=${DB_USER}
       - DB_DATABASE=${DB_DATABASE}
       - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_DRIVER=${DB_DRIVER}
     depends_on:
       - postgres
     restart: always
