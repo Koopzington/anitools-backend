@@ -171,6 +171,14 @@ final class Filter
             }
             if ($dataType === 'array_string') {
                 foreach ($filteredValue as $andOrNot => $vals) {
+                    // Skip tagPercentageMin/Max
+                    if (
+                        $filterType === 'tag' && (
+                            $andOrNot === 'tagPercentageMin' || $andOrNot === 'tagPercentageMax'
+                        )
+                    ) {
+                        continue;
+                    }
                     $filteredValue[$andOrNot] = array_map(
                         function ($v) {
                             return str_replace("'", "''", $v);
