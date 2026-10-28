@@ -23,8 +23,8 @@ final class DBService
             'dbname' => getenv('DB_DATABASE'),
             'user' => getenv('DB_USER'),
             'password' => getenv('DB_PASSWORD'),
-            'host' => 'postgres',
-            'driver' => 'pdo_pgsql',
+            'host' => getenv('DB_HOST'),
+            'driver' => getenv('DB_DRIVER'),
         ];
         $conn = DriverManager::getConnection($connectionParams);
 

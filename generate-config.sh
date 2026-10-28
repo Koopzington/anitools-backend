@@ -19,7 +19,8 @@ cat << EOF > .env
 
 DB_USER=anitools
 DB_DATABASE=anitools
-
+DB_HOST=postgres
+DB_DRIVER=pdo_pgsql
 DB_PASSWORD=$(LC_ALL=C </dev/urandom tr -dc A-Za-z0-9 | head -c 28)
 
 EOF
