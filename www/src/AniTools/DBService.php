@@ -98,7 +98,7 @@ final class DBService
                 if (self::$schemaManager === null) {
                     self::$schemaManager = self::getDBConnection()->createSchemaManager();
                 }
-                $tableSchema = self::$schemaManager->introspectTable('media');
+                $tableSchema = self::$schemaManager->introspectTableByUnquotedName('media');
                 $pkCols = $tableSchema->getPrimaryKeyConstraint()->getColumnNames();
                 self::$schemaCache[$table] = $pkCols;
             }

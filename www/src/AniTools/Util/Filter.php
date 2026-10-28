@@ -171,9 +171,6 @@ final class Filter
             }
             if ($dataType === 'array_string') {
                 foreach ($filteredValue as $andOrNot => $vals) {
-                    if (! is_array($vals)) {
-                        continue;
-                    }
                     $filteredValue[$andOrNot] = array_map(
                         function ($v) {
                             return str_replace("'", "''", $v);

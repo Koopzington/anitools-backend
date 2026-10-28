@@ -8,7 +8,6 @@ use DateTime;
 use GuzzleHttp\Client;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
-use GuzzleHttp\RetryMiddleware;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Spatie\GuzzleRateLimiterMiddleware\RateLimiterMiddleware;
@@ -45,7 +44,7 @@ final class MangaUpdatesClient
                 // Use the middleware's default method for deciding the length if no header exists
                 // The AniList API should always return the header on a 429 but we're just making sure here
                 if (! $response->hasHeader('Retry-After')) {
-                    return RetryMiddleware::exponentialDelay($retries);
+                    return (int) 2 ** ($retries - 1) * 1000;
                 }
 
                 // If the header exists, use the delay the server instructed us to use
