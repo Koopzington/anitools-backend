@@ -18,7 +18,7 @@ $commands = [
     Command\Import::class,
 ];
 foreach ($commands as $command) {
-    $cliApplication->add(new $command());
+    $cliApplication->addCommand(new $command());
 }
 echo date('Y-m-d H:i:s') . PHP_EOL;
 echo <<<EOC
