@@ -9,7 +9,6 @@ use AniTools\Endpoint\ScrapeState;
 use AniTools\Endpoint\Search;
 use AniTools\Endpoint\SearchForFilter;
 use AniTools\Endpoint\SearchStaff;
-use AniTools\Endpoint\Signature;
 use AniTools\Endpoint\UserLists;
 use AniTools\UserManager;
 use AniTools\Util\ServerLog;
@@ -39,13 +38,11 @@ $userManager = new UserManager($conn, $logger);
 $logger->debug("Instantiating Backend");
 $backend = new AniTools\APIService($conn, $userManager, $logger);
 $logger->debug("Instantiating SVG Generator");
-$svgGenerator = new AniTools\SVGGenerator($conn, $logger);
 
 $router = new RouterContainer();
 $map = $router->getMap();
 
 $endpoints = [
-    new Signature($svgGenerator),
     new FilterValues($backend),
     new SearchForFilter($backend),
     new SearchStaff($backend),
