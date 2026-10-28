@@ -22,7 +22,6 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./www:/anitools-backend
-      - ./docker/php/leaderboard-crons:/etc/periodic/15min/leaderboard-crons:ro
       - ./docker/php/scraper-crons:/etc/periodic/weekly/scraper-crons:ro
     working_dir: /anitools-backend
     command: crond -f

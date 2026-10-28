@@ -13,7 +13,7 @@ final class AWC implements ScraperInterface
     public const SCRAPER_NAME = 'awc';
 
     public const VALID_DATATYPES = [
-        'leaderboard',
+        'community-lists',
     ];
 
     private const URL = 'https://awc.moe/';
@@ -34,19 +34,29 @@ final class AWC implements ScraperInterface
     public function scrape(string $dataType): int
     {
         return match ($dataType) {
-            'leaderboard' => $this->scrapeLeaderBoard(),
+            'community-lists' => $this->scrapeCommunityLists(),
             default => Command::FAILURE
         };
     }
 
-    public function scrapeLeaderBoard(): int
+    public function scrapeCommunityLists(): int
     {
-        $this->output->writeln('Scraping AWC Leaderboard.');
-        $response = $this->client->get(self::URL . 'leaderboard/')
+        $this->output->writeln('Scraping AWC Community Lists.');
+        $response = $this->client->get(self::URL . 'lists/json')
             ->getBody()->getContents();
-        preg_match('/users \= (.*);/m', $response, $result);
+        $response = json_decode($response, true);
+        
+        $data = [];
+        foreach ($response as $media) {
+            foreach ($media['lists'] as $list) {
+                if (! isset($data[$list])) {
+                    $data[$list] = [];
+                }
+                $data[$list][] = $media['mediaId'];
+            }
+        }
 
-        file_put_contents('data/import/awc-leaderboard.json', $result[1]);
+        file_put_contents('data/import/awc-community-lists.json', json_encode($data, JSON_UNESCAPED_UNICODE));
 
         return Command::SUCCESS;
     }

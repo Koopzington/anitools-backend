@@ -90,7 +90,6 @@ final class Importer
     public const VALID_DATATYPES = [
         'anilist',
         'awc',
-        'awc-leaderboard',
         'media-tag-collection',
         'animeshon',
         'mangaupdates',
@@ -133,7 +132,6 @@ final class Importer
         return match ($source) {
             'anilist' => $this->importAniListData(),
             'awc' => $this->importAWCData(),
-            'awc-leaderboard' => $this->importAWCLeaderboard(),
             'media-tag-collection' => $this->importMediaTagCollection(),
             'animeshon' => $this->importAnimeShonCrossRefs(),
             'mangaupdates' => $this->importMangaUpdatesSeries(),
@@ -624,33 +622,9 @@ final class Importer
         $this->output->write(PHP_EOL);
     }
 
-    private function importAWCLeaderboard(): int
-    {
-        $this->output->writeln('Importing AWC leaderboard');
-        $this->db->executeQuery('DELETE FROM awc_leaderboard');
-
-        $filename = 'data/import/awc-leaderboard.json';
-        if (! file_exists($filename)) {
-            $this->output->writeln('File ' . $filename . ' not found. Aborting import.');
-        }
-        $data = json_decode(file_get_contents($filename), true);
-        $data = array_map(function ($row) {
-            $row['username'] = $row['name'];
-            unset($row['name']);
-
-            return $row;
-        }, $data);
-
-        $this->db->beginTransaction();
-        $this->db->executeQuery(DBService::getBatchInsertFor('awc_leaderboard', $data));
-        $this->db->commit();
-
-        return Command::SUCCESS;
-    }
-
     private function importCommunityLists(): void
     {
-        $file = self::IMPORT_DIR . 'data-community-lists.json';
+        $file = self::IMPORT_DIR . 'awc-community-lists.json';
 
         if (! file_exists($file)) {
             $this->output->writeln("<error>File: '$file' doesn't exist.</error>");

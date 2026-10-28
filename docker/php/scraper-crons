@@ -5,12 +5,12 @@ php /anitools-backend/cli.php app:scrape anilist media-meta
 php /anitools-backend/cli.php app:scrape anilist media-updates
 php /anitools-backend/cli.php app:scrape anilist characters
 php /anitools-backend/cli.php app:scrape anilist staff
-php /anitools-backend/cli.php app:scrape anilist community-lists
 php /anitools-backend/cli.php app:scrape anilist gamblers
 
 # Import AL data
 php /anitools-backend/cli.php app:import anilist
 # Import Community Lists and Gambler's Bot Picks
+php /anitools-backend/cli.php app:scrape awc community-lists
 php /anitools-backend/cli.php app:import awc
 # Scrape and import Mangabaka mappings
 php /anitools-backend/cli.php app:scrape mangabaka mappings

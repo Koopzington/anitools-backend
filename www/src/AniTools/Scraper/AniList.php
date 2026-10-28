@@ -24,7 +24,6 @@ final class AniList implements ScraperInterface
         'manga',
         'characters',
         'staff',
-        'community-lists',
         'gamblers',
         'challenge',
         'media-tag-collection',
@@ -344,21 +343,6 @@ final class AniList implements ScraperInterface
         }
     }';
 
-    private const COMMUNITY_LIST_QUERY = '
-    query {
-        MediaListCollection(userName: "AWC", type: ANIME) {
-            lists {
-                isCustomList
-                name
-                entries {
-                    media {
-                        id
-                    }
-                }
-            }
-        }
-    }';
-
     private const CHALLENGE_THREAD_QUERY = '
     query ($thread: Int) {
         Thread (id: $thread) {
@@ -485,9 +469,6 @@ final class AniList implements ScraperInterface
             case 'staff':
                 $this->output->writeln('Scraping ' . $mediaType . ' data');
                 $this->fullScrape($mediaType);
-                break;
-            case 'community-lists':
-                $this->scrapeCommunityLists();
                 break;
             case 'gamblers':
                 $this->mediaType = $mediaType;
@@ -819,25 +800,6 @@ final class AniList implements ScraperInterface
         }
         $response = AniListClient::request(self::MEDIA_TAG_COLLECTION_QUERY);
         file_put_contents($filename, json_encode($response['data']['MediaTagCollection']));
-    }
-
-    private function scrapeCommunityLists(): void
-    {
-        $this->mediaType = 'community-lists';
-        $filename = 'data/import/data-community-lists.json';
-        $data = [];
-
-        $response = AniListClient::request(self::COMMUNITY_LIST_QUERY);
-        foreach ($response['data']['MediaListCollection']['lists'] as $list) {
-            if (! (bool) $list['isCustomList']) {
-                continue;
-            }
-            $data[$list['name']] = [];
-            foreach ($list['entries'] as $entry) {
-                $data[$list['name']][] = $entry['media']['id'];
-            }
-        }
-        file_put_contents($filename, json_encode($data, JSON_UNESCAPED_UNICODE));
     }
 
     /*
