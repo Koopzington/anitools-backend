@@ -28,6 +28,9 @@ final class APIService
     private array $filterValueCache = [];
     private int $filterValueCacheAge = 0;
 
+    /** @var array<int, array<string,int>> */
+    private array $userTotalsCache = [];
+
     private const COLUMN_MAP = [
         'title' => 'title_romaji',
         'titleEng' => 'title_english',
@@ -1355,6 +1358,10 @@ final class APIService
 
         if (isset($response['data']['MediaListCollection'])) {
             $this->userManager->importUser($response['data']['MediaListCollection'], $mediaType);
+            // Clear totals cache entry if it exists
+            if (isset($this->userTotalsCache[$response['data']['MediaListCollection']['user']['id']])) {
+                unset($this->userTotalsCache[$response['data']['MediaListCollection']['user']['id']]);
+            }
         } else {
             $warnings[] = [
                 'source' => 'AniList',
@@ -1878,19 +1885,25 @@ final class APIService
         );
         if ($hasUserListRestrictions && $user !== null) {
             $totalSel->innerJoin('media', '(' . $sub . ')', 'user_media', 'media.id = user_media.media_id');
-            // Add a column to get the amount of entries the user has completed
-            $tCols[] = 'SUM(CASE WHEN user_media.status = \'COMPLETED\' THEN 1 ELSE 0 END) as count_completed';
-            $totalSel->select(...$tCols);
 
-            $totalWhere = [
-                'userList' => $filters['and']['userList'],
-            ];
+            if (! isset($this->userTotalsCache[$user->id])) {
+                // Add a column to get the amount of entries the user has completed
+                $tCols[] = 'SUM(CASE WHEN user_media.status = \'COMPLETED\' THEN 1 ELSE 0 END) as count_completed';
+                $totalSel->select(...$tCols);
 
-            $totalWhere = $this->getWhereClauses('media', $totalWhere, $totalSel, $user);
-            $totalSel->where(...$totalWhere);
+                $totalWhere = [
+                    'userList' => $filters['and']['userList'],
+                ];
 
-            $this->log->debug((string) $totalSel, ['username' => '(' . $user->userName . ') ']);
-            $result = $totalSel->executeQuery()->fetchAssociative();
+                $totalWhere = $this->getWhereClauses('media', $totalWhere, $totalSel, $user);
+                $totalSel->where(...$totalWhere);
+
+                $this->log->debug((string) $totalSel, ['username' => '(' . $user->userName . ') ']);
+                $result = $totalSel->executeQuery()->fetchAssociative();
+                $this->userTotalsCache[$user->id] = $result;
+            } else {
+                $result = $this->userTotalsCache[$user->id];
+            }
             $totalAmount = $result['count'];
             $totalEpisodes = $result['episodes'];
             $totalVolumes = $result['volumes'];
